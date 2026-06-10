@@ -1,0 +1,41 @@
+# Build and distribution directories
+build/
+dist/
+
+# Python compiled files
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+
+# PyInstaller
+*.spec
+
+# Virtual environments
+venv/
+env/
+ENV/
+.venv/
+
+# IDE settings
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Temporary files
+*.log
+tmp/
+temp/
+
+# Hidden config files (keep them in git if needed)
+# .deepseek_key
+# .openai_key
+# .anthropic_key
+# .token_manager_settings
