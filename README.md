@@ -13,7 +13,7 @@
 
 ### 方式1: 直接使用EXE（推荐）
 
-[Releases](https://github.com/ZhuLinsen/daily_stock_analysis/releases)中下载最新exe文件，双击打开使用。
+[Releases](https://github.com/shengyexiuyo/TokenManager/releases)中下载最新exe文件，双击打开使用。
 
 
 
