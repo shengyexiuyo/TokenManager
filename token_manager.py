@@ -17,9 +17,19 @@ import sys
 import os
 import webbrowser
 
+def get_config_path(filename: str) -> str:
+    """获取配置文件路径，支持打包后的exe"""
+    if getattr(sys, 'frozen', False):
+        # 打包后的exe，使用exe所在目录
+        exe_dir = os.path.dirname(sys.executable)
+    else:
+        # 开发模式，使用脚本所在目录
+        exe_dir = os.path.dirname(__file__)
+    return os.path.join(exe_dir, filename)
+
 # 加载主题设置
 def load_theme_setting():
-    config_file = os.path.join(os.path.dirname(__file__), '.token_manager_settings')
+    config_file = get_config_path('.token_manager_settings')
     try:
         if os.path.exists(config_file):
             with open(config_file, 'r') as f:
@@ -422,6 +432,7 @@ class TokenManagerApp(ctk.CTk):
             corner_radius=12,
             font=ctk.CTkFont(size=15),
             fg_color=self.colors['bg_input'],
+            text_color=self.colors['text'],
             button_color=self.colors['primary'],
             button_hover_color=self.colors['primary_hover'],
             dropdown_fg_color=self.colors['bg_card'],
@@ -476,6 +487,7 @@ class TokenManagerApp(ctk.CTk):
             corner_radius=12,
             font=ctk.CTkFont(size=14),
             fg_color=self.colors['bg_input'],
+            text_color=self.colors['text'],
             button_color=self.colors['primary'],
             button_hover_color=self.colors['primary_hover'],
             dropdown_fg_color=self.colors['bg_card'],
@@ -706,7 +718,7 @@ class TokenManagerApp(ctk.CTk):
         self.current_provider = None
         self.web_btn.configure(state="disabled")
         
-        config_file = os.path.join(os.path.dirname(__file__), '.token_manager_settings')
+        config_file = get_config_path('.token_manager_settings')
         try:
             if os.path.exists(config_file):
                 with open(config_file, 'r') as f:
@@ -727,7 +739,7 @@ class TokenManagerApp(ctk.CTk):
             return
         
         provider_key = self.current_provider.name.lower()
-        config_file = os.path.join(os.path.dirname(__file__), f'.{provider_key}_keys')
+        config_file = get_config_path(f'.{provider_key}_keys')
         
         try:
             if os.path.exists(config_file):
@@ -776,7 +788,7 @@ class TokenManagerApp(ctk.CTk):
         if len(self.api_key_history[provider_key]) > 10:
             self.api_key_history[provider_key] = self.api_key_history[provider_key][:10]
         
-        config_file = os.path.join(os.path.dirname(__file__), f'.{provider_key}_keys')
+        config_file = get_config_path(f'.{provider_key}_keys')
         
         try:
             with open(config_file, 'w') as f:
@@ -807,7 +819,7 @@ class TokenManagerApp(ctk.CTk):
         if api_key in self.api_key_history[provider_key]:
             self.api_key_history[provider_key].remove(api_key)
             
-            config_file = os.path.join(os.path.dirname(__file__), f'.{provider_key}_keys')
+            config_file = get_config_path(f'.{provider_key}_keys')
             try:
                 with open(config_file, 'w') as f:
                     json.dump(self.api_key_history[provider_key], f)
@@ -845,7 +857,7 @@ class TokenManagerApp(ctk.CTk):
             keys = self.api_key_history.get(provider_key, [])
             if not keys:
                 # 尝试从文件加载
-                config_file = os.path.join(os.path.dirname(__file__), f'.{provider_key}_keys')
+                config_file = get_config_path(f'.{provider_key}_keys')
                 try:
                     if os.path.exists(config_file):
                         with open(config_file, 'r') as f:
@@ -1004,7 +1016,7 @@ class TokenManagerApp(ctk.CTk):
                 balance_items.append(("充值余额", f"{result.get('balance_topped_up', 0):.2f} {currency}", self.colors['accent']))
         
         for label, value, color in balance_items:
-            cell = ctk.CTkFrame(balance_grid, corner_radius=8, fg_color=self.colors['bg_card'])
+            cell = ctk.CTkFrame(balance_grid, corner_radius=8, fg_color=self.colors['bg_hover'])
             cell.pack(side="left", fill="x", expand=True, padx=(0, 8))
             ctk.CTkLabel(cell, text=label, font=ctk.CTkFont(size=11), text_color=self.colors['text_muted']).pack(pady=(8, 2))
             ctk.CTkLabel(cell, text=value, font=ctk.CTkFont(size=13, weight="bold"), text_color=color).pack(pady=(0, 8))
@@ -1037,7 +1049,7 @@ class TokenManagerApp(ctk.CTk):
             usage_items.append(("用量", "暂无数据", self.colors['text_muted']))
         
         for label, value, color in usage_items:
-            cell = ctk.CTkFrame(usage_grid, corner_radius=8, fg_color=self.colors['bg_card'])
+            cell = ctk.CTkFrame(usage_grid, corner_radius=8, fg_color=self.colors['bg_hover'])
             cell.pack(side="left", fill="x", expand=True, padx=(0, 8))
             ctk.CTkLabel(cell, text=label, font=ctk.CTkFont(size=11), text_color=self.colors['text_muted']).pack(pady=(8, 2))
             ctk.CTkLabel(cell, text=value, font=ctk.CTkFont(size=13, weight="bold"), text_color=color).pack(pady=(0, 8))
@@ -1192,7 +1204,7 @@ class TokenManagerApp(ctk.CTk):
         save_theme = 'light' if not self.is_dark_theme else 'dark'
         
         # 保存设置
-        config_file = os.path.join(os.path.dirname(__file__), '.token_manager_settings')
+        config_file = get_config_path('.token_manager_settings')
         try:
             settings = {}
             if os.path.exists(config_file):
@@ -1265,6 +1277,7 @@ class TokenManagerApp(ctk.CTk):
         self.provider_label.configure(text_color=self.colors['text_secondary'])
         self.provider_combo.configure(
             fg_color=self.colors['bg_input'],
+            text_color=self.colors['text'],
             dropdown_fg_color=self.colors['bg_card'],
             dropdown_text_color=self.colors['text']
         )
@@ -1280,6 +1293,7 @@ class TokenManagerApp(ctk.CTk):
         self.key_subtitle.configure(text_color=self.colors['text_muted'])
         self.api_key_combo.configure(
             fg_color=self.colors['bg_input'],
+            text_color=self.colors['text'],
             dropdown_fg_color=self.colors['bg_card'],
             dropdown_text_color=self.colors['text']
         )
