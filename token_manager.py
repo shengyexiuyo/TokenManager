@@ -3,7 +3,7 @@
 
 """
 Token Manager - AI API余额查询工具
-支持多种AI服务提供商的API余额查询
+Clash Verge风格极简界面设计
 """
 
 import customtkinter as ctk
@@ -17,9 +17,22 @@ import sys
 import os
 import webbrowser
 
-# 设置外观
-ctk.set_appearance_mode("light")
-ctk.set_default_color_theme("blue")
+# 加载主题设置
+def load_theme_setting():
+    config_file = os.path.join(os.path.dirname(__file__), '.token_manager_settings')
+    try:
+        if os.path.exists(config_file):
+            with open(config_file, 'r') as f:
+                settings = json.load(f)
+                return settings.get('theme', 'dark')
+    except Exception:
+        pass
+    return 'dark'
+
+# 根据保存的设置设置外观模式
+theme = load_theme_setting()
+ctk.set_appearance_mode(theme)
+ctk.set_default_color_theme("dark-blue")
 
 # Windows隐藏子进程窗口
 if sys.platform == 'win32':
@@ -49,11 +62,10 @@ if sys.platform == 'win32':
         ]
     
     def get_startup_info():
-        """获取Windows隐藏窗口的STARTUPINFO"""
         si = STARTUPINFO()
         si.cb = ctypes.sizeof(STARTUPINFO)
-        si.dwFlags = 0x00000001 | 0x00000080  # STARTF_USESTDHANDLES | STARTF_USESHOWWINDOW
-        si.wShowWindow = 0  # SW_HIDE
+        si.dwFlags = 0x00000001 | 0x00000080
+        si.wShowWindow = 0
         return si
     
     startupinfo = get_startup_info()
@@ -67,57 +79,41 @@ class APIProvider(ABC):
     @property
     @abstractmethod
     def name(self) -> str:
-        """提供商名称"""
         pass
     
     @property
     @abstractmethod
     def balance_endpoint(self) -> str:
-        """余额查询API端点"""
         pass
     
     @property
     @abstractmethod
     def auth_type(self) -> str:
-        """认证类型: bearer 或 api_key"""
         pass
     
     @property
     @abstractmethod
     def dashboard_url(self) -> str:
-        """Web管理界面URL"""
         pass
     
     @abstractmethod
     def parse_balance(self, data: dict) -> list:
-        """解析余额数据"""
         pass
     
     @abstractmethod
     def validate_api_key(self, api_key: str) -> bool:
-        """验证API密钥格式"""
         pass
 
 
 class DeepSeekProvider(APIProvider):
-    """DeepSeek API提供商"""
-    
     @property
-    def name(self) -> str:
-        return "DeepSeek"
-    
+    def name(self): return "DeepSeek"
     @property
-    def balance_endpoint(self) -> str:
-        return "https://api.deepseek.com/user/balance"
-    
+    def balance_endpoint(self): return "https://api.deepseek.com/user/balance"
     @property
-    def auth_type(self) -> str:
-        return "bearer"
-    
+    def auth_type(self): return "bearer"
     @property
-    def dashboard_url(self) -> str:
-        return "https://platform.deepseek.com/"
-    
+    def dashboard_url(self): return "https://platform.deepseek.com/"
     def parse_balance(self, data: dict) -> list:
         balance_list = data.get('balance_infos', [])
         result = []
@@ -130,65 +126,39 @@ class DeepSeekProvider(APIProvider):
                 'available': float(item.get('total_balance', '0'))
             })
         return result
-    
     def validate_api_key(self, api_key: str) -> bool:
         return api_key.startswith('sk-')
 
 
 class OpenAIProvider(APIProvider):
-    """OpenAI API提供商"""
-    
     @property
-    def name(self) -> str:
-        return "OpenAI"
-    
+    def name(self): return "OpenAI"
     @property
-    def balance_endpoint(self) -> str:
-        return "https://api.openai.com/v1/dashboard/billing/subscription"
-    
+    def balance_endpoint(self): return "https://api.openai.com/v1/dashboard/billing/subscription"
     @property
-    def auth_type(self) -> str:
-        return "bearer"
-    
+    def auth_type(self): return "bearer"
     @property
-    def dashboard_url(self) -> str:
-        return "https://platform.openai.com/"
-    
+    def dashboard_url(self): return "https://platform.openai.com/"
     def parse_balance(self, data: dict) -> list:
-        # OpenAI返回的数据格式需要额外调用usage API
         return [{
             'currency': 'USD',
-            'total': 0,
-            'granted': 0,
-            'topped_up': 0,
-            'available': 0,
+            'total': 0, 'granted': 0, 'topped_up': 0, 'available': 0,
             'has_subscription': data.get('has_payment_method', False),
             'plan_name': data.get('plan', {}).get('title', 'N/A')
         }]
-    
     def validate_api_key(self, api_key: str) -> bool:
         return api_key.startswith('sk-')
 
 
 class AnthropicProvider(APIProvider):
-    """Anthropic API提供商"""
-    
     @property
-    def name(self) -> str:
-        return "Anthropic"
-    
+    def name(self): return "Anthropic"
     @property
-    def balance_endpoint(self) -> str:
-        return "https://api.anthropic.com/v1/account"
-    
+    def balance_endpoint(self): return "https://api.anthropic.com/v1/account"
     @property
-    def auth_type(self) -> str:
-        return "api_key"
-    
+    def auth_type(self): return "api_key"
     @property
-    def dashboard_url(self) -> str:
-        return "https://console.anthropic.com/"
-    
+    def dashboard_url(self): return "https://console.anthropic.com/"
     def parse_balance(self, data: dict) -> list:
         return [{
             'currency': 'USD',
@@ -197,12 +167,10 @@ class AnthropicProvider(APIProvider):
             'topped_up': 0,
             'available': data.get('spending_limit', 0) / 100 if data.get('spending_limit') else 0
         }]
-    
     def validate_api_key(self, api_key: str) -> bool:
         return api_key.startswith('sk-ant-')
 
 
-# 注册所有提供商
 API_PROVIDERS = {
     'deepseek': DeepSeekProvider(),
     'openai': OpenAIProvider(),
@@ -211,208 +179,402 @@ API_PROVIDERS = {
 
 
 class TokenManagerApp(ctk.CTk):
-    """Token Manager 主窗口"""
+    """Token Manager - Clash Verge风格"""
     
     def __init__(self):
         super().__init__()
         
-        self.title("Token Manager - AI API余额查询")
-        self.geometry("700x750")
-        self.minsize(650, 700)  # 设置最小窗口大小
+        self.title("Token Manager")
+        self.geometry("1020x880")
+        self.minsize(980, 820)
         
-        # 当前选中的提供商
         self.current_provider = None
         self.balance_info = None
+        self.api_key_history = {}
+        self.is_dark_theme = (theme == 'dark')
         
-        # 创建界面
+        # 根据主题设置配色
+        self._init_colors()
+        self.configure(fg_color=self.colors['bg'])
+        
         self.create_widgets()
-        
-        # 加载保存的设置
         self.load_settings()
     
+    def _init_colors(self):
+        """初始化配色方案"""
+        if self.is_dark_theme:
+            # 深色主题
+            self.colors = {
+                'bg': '#000000',
+                'bg_sidebar': '#0a0a0a',
+                'bg_card': '#1c1c1e',
+                'bg_hover': '#2c2c2e',
+                'bg_input': '#2c2c2e',
+                'bg_button': '#3a3a3c',
+                'primary': '#a855f7',
+                'primary_hover': '#9333ea',
+                'accent': '#6366f1',
+                'success': '#22c55e',
+                'danger': '#ef4444',
+                'warning': '#f59e0b',
+                'text': '#ffffff',
+                'text_secondary': '#a1a1aa',
+                'text_muted': '#71717a',
+                'border': '#27272a',
+            }
+        else:
+            # 浅色主题
+            self.colors = {
+                'bg': '#f5f5f5',
+                'bg_sidebar': '#ffffff',
+                'bg_card': '#ffffff',
+                'bg_hover': '#e5e5e5',
+                'bg_input': '#e5e5e5',
+                'bg_button': '#d4d4d4',
+                'primary': '#a855f7',
+                'primary_hover': '#9333ea',
+                'accent': '#6366f1',
+                'success': '#22c55e',
+                'danger': '#ef4444',
+                'warning': '#f59e0b',
+                'text': '#18181b',
+                'text_secondary': '#52525b',
+                'text_muted': '#71717a',
+                'border': '#e4e4e7',
+            }
+    
     def create_widgets(self):
-        """创建界面组件"""
-        
         # 主容器
-        main_frame = ctk.CTkFrame(self, corner_radius=0, fg_color="#ffffff")
-        main_frame.pack(fill="both", expand=True)
+        self.main_frame = ctk.CTkFrame(self, corner_radius=0, fg_color=self.colors['bg'])
+        self.main_frame.pack(fill="both", expand=True)
         
-        # 标题栏
-        header_frame = ctk.CTkFrame(main_frame, corner_radius=0, height=70, fg_color="#0078d4")
-        header_frame.pack(fill="x", padx=0, pady=0)
-        header_frame.pack_propagate(False)
+        # ========== 左侧边栏 ==========
+        self.sidebar = ctk.CTkFrame(self.main_frame, corner_radius=0, width=200, fg_color=self.colors['bg_sidebar'])
+        self.sidebar.pack(side="left", fill="y")
+        self.sidebar.pack_propagate(False)
         
-        title_label = ctk.CTkLabel(
-            header_frame,
-            text="Token Manager",
-            font=ctk.CTkFont(size=24, weight="bold"),
-            text_color="white"
+        # 侧边栏标题
+        sidebar_title = ctk.CTkFrame(self.sidebar, corner_radius=0, height=70, fg_color="transparent")
+        sidebar_title.pack(fill="x", padx=20, pady=(20, 30))
+        sidebar_title.pack_propagate(False)
+        
+        self.sidebar_title_label = ctk.CTkLabel(
+            sidebar_title,
+            text="⚡ Token Manager",
+            font=ctk.CTkFont(size=18, weight="bold"),
+            text_color=self.colors['text']
         )
-        title_label.pack(pady=18)
+        self.sidebar_title_label.pack(anchor="w", pady=(10, 0))
         
-        # 内容区域
-        content_frame = ctk.CTkFrame(main_frame, corner_radius=0, fg_color="#f5f5f5")
-        content_frame.pack(fill="both", expand=True, padx=20, pady=20)
+        # 导航按钮
+        self.nav_home = self._create_nav_button(self.sidebar, "🏠 首页", True)
+        self.nav_home.configure(command=self._show_home)
         
-        # 提供商选择
-        provider_frame = ctk.CTkFrame(content_frame, corner_radius=12, fg_color="#ffffff")
-        provider_frame.pack(fill="x", pady=(0, 20))
+        self.nav_settings = self._create_nav_button(self.sidebar, "⚙️ 设置", False)
+        self.nav_settings.configure(command=self._show_settings)
         
-        provider_title = ctk.CTkLabel(
-            provider_frame,
-            text="选择AI服务提供商",
-            font=ctk.CTkFont(size=16, weight="bold"),
-            text_color="#333333"
+        # 底部主题切换
+        theme_frame = ctk.CTkFrame(self.sidebar, corner_radius=0, fg_color="transparent")
+        theme_frame.pack(side="bottom", fill="x", padx=20, pady=20)
+        
+        self.theme_btn = ctk.CTkButton(
+            theme_frame,
+            text="🌙 Dark" if self.is_dark_theme else "☀️ Light",
+            height=40,
+            corner_radius=10,
+            font=ctk.CTkFont(size=13),
+            fg_color=self.colors['bg_card'],
+            hover_color=self.colors['bg_hover'],
+            text_color=self.colors['text_secondary'],
+            command=self.toggle_theme
         )
-        provider_title.pack(anchor="w", padx=20, pady=(20, 15))
+        self.theme_btn.pack(fill="x")
         
-        # 提供商选择下拉框
-        provider_select_frame = ctk.CTkFrame(provider_frame, corner_radius=0, fg_color="transparent")
-        provider_select_frame.pack(fill="x", padx=20, pady=(0, 20))
+        # ========== 右侧内容区 ==========
+        self.content_area = ctk.CTkFrame(self.main_frame, corner_radius=0, fg_color=self.colors['bg'])
+        self.content_area.pack(side="left", fill="both", expand=True, padx=40, pady=30)
+        
+        # 创建页面
+        self.home_page = self._create_home_page()
+        self.settings_page = self._create_settings_page()
+        
+        self._show_home()
+    
+    def _create_nav_button(self, parent, text, active=False):
+        fg = self.colors['bg_card'] if active else "transparent"
+        tc = self.colors['text'] if active else self.colors['text_secondary']
+        
+        btn = ctk.CTkButton(
+            parent,
+            text=text,
+            height=44,
+            corner_radius=10,
+            font=ctk.CTkFont(size=14),
+            fg_color=fg,
+            hover_color=self.colors['bg_card'],
+            text_color=tc,
+            anchor="w"
+        )
+        btn.pack(fill="x", padx=12, pady=2)
+        return btn
+    
+    def _create_home_page(self):
+        page = ctk.CTkFrame(self.content_area, corner_radius=0, fg_color="transparent")
+        
+        # 页面标题
+        self.page_title = ctk.CTkLabel(
+            page,
+            text="查询余额",
+            font=ctk.CTkFont(size=32, weight="bold"),
+            text_color=self.colors['text']
+        )
+        self.page_title.pack(anchor="w", pady=(0, 8))
+        
+        self.page_subtitle = ctk.CTkLabel(
+            page,
+            text="选择服务商并输入API密钥查询余额",
+            font=ctk.CTkFont(size=14),
+            text_color=self.colors['text_muted']
+        )
+        self.page_subtitle.pack(anchor="w", pady=(0, 30))
+        
+        # 提供商卡片
+        self.provider_card = self._create_card(page)
+        self.provider_card.pack(fill="x", pady=(0, 16))
+        
+        self.provider_label = ctk.CTkLabel(
+            self.provider_card,
+            text="服务商",
+            font=ctk.CTkFont(size=14, weight="bold"),
+            text_color=self.colors['text_secondary']
+        )
+        self.provider_label.pack(anchor="w", padx=24, pady=(20, 12))
+        
+        # 提供商选择行
+        provider_row = ctk.CTkFrame(self.provider_card, corner_radius=0, fg_color="transparent")
+        provider_row.pack(fill="x", padx=24, pady=(0, 20))
         
         provider_names = [""] + [p.name for p in API_PROVIDERS.values()]
         self.provider_combo = ctk.CTkOptionMenu(
-            provider_select_frame,
+            provider_row,
             values=provider_names,
-            width=220,
-            height=40,
-            corner_radius=8,
-            font=ctk.CTkFont(size=14),
+            width=300,
+            height=48,
+            corner_radius=12,
+            font=ctk.CTkFont(size=15),
+            fg_color=self.colors['bg_input'],
+            button_color=self.colors['primary'],
+            button_hover_color=self.colors['primary_hover'],
+            dropdown_fg_color=self.colors['bg_card'],
+            dropdown_text_color=self.colors['text'],
             command=self.on_provider_changed
         )
-        self.provider_combo.pack(side="left", padx=(0, 15))
+        self.provider_combo.pack(side="left", padx=(0, 12))
         
-        # 跳转管理界面按钮
-        self.dashboard_button = ctk.CTkButton(
-            provider_select_frame,
-            text="官方web",
-            width=100,
-            height=40,
-            corner_radius=8,
+        # Web跳转按钮
+        self.web_btn = ctk.CTkButton(
+            provider_row,
+            text="🌐 官方Web",
+            width=120,
+            height=48,
+            corner_radius=12,
             font=ctk.CTkFont(size=13),
+            fg_color=self.colors['bg_button'],
+            hover_color=self.colors['primary'],
+            text_color=self.colors['text_secondary'],
             state="disabled",
             command=self.open_dashboard
         )
-        self.dashboard_button.pack(side="left")
+        self.web_btn.pack(side="left")
         
-        # API密钥输入区域
-        key_frame = ctk.CTkFrame(content_frame, corner_radius=12, fg_color="#ffffff")
-        key_frame.pack(fill="x", pady=(0, 20))
+        # API密钥卡片
+        self.key_card = self._create_card(page)
+        self.key_card.pack(fill="x", pady=(0, 16))
         
-        key_title = ctk.CTkLabel(
-            key_frame,
+        self.key_label = ctk.CTkLabel(
+            self.key_card,
             text="API 密钥",
-            font=ctk.CTkFont(size=16, weight="bold"),
-            text_color="#333333"
+            font=ctk.CTkFont(size=14, weight="bold"),
+            text_color=self.colors['text_secondary']
         )
-        key_title.pack(anchor="w", padx=20, pady=(20, 10))
+        self.key_label.pack(anchor="w", padx=24, pady=(20, 8))
         
-        key_subtitle = ctk.CTkLabel(
-            key_frame,
-            text="输入API密钥以查询余额",
-            font=ctk.CTkFont(size=13),
-            text_color="#666666"
-        )
-        key_subtitle.pack(anchor="w", padx=20, pady=(0, 15))
-        
-        key_input_frame = ctk.CTkFrame(key_frame, corner_radius=0, fg_color="transparent")
-        key_input_frame.pack(fill="x", padx=15, pady=(0, 15))
-        
-        self.api_key_entry = ctk.CTkEntry(
-            key_input_frame,
-            width=400,
-            height=36,
-            corner_radius=6,
+        self.key_subtitle = ctk.CTkLabel(
+            self.key_card,
+            text="输入或选择已保存的密钥",
             font=ctk.CTkFont(size=12),
-            placeholder_text="sk-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+            text_color=self.colors['text_muted']
         )
-        self.api_key_entry.pack(side="left", padx=(0, 10))
+        self.key_subtitle.pack(anchor="w", padx=24, pady=(0, 12))
         
-        self.save_key_button = ctk.CTkButton(
-            key_input_frame,
+        key_row = ctk.CTkFrame(self.key_card, corner_radius=0, fg_color="transparent")
+        key_row.pack(fill="x", padx=24, pady=(0, 20))
+        
+        self.api_key_combo = ctk.CTkComboBox(
+            key_row,
+            width=380,
+            height=48,
+            corner_radius=12,
+            font=ctk.CTkFont(size=14),
+            fg_color=self.colors['bg_input'],
+            button_color=self.colors['primary'],
+            button_hover_color=self.colors['primary_hover'],
+            dropdown_fg_color=self.colors['bg_card'],
+            dropdown_text_color=self.colors['text']
+        )
+        self.api_key_combo.set("")
+        self.api_key_combo.pack(side="left", padx=(0, 10))
+        
+        self.save_btn = ctk.CTkButton(
+            key_row,
             text="保存",
             width=80,
-            height=36,
-            corner_radius=6,
+            height=48,
+            corner_radius=12,
             font=ctk.CTkFont(size=13),
+            fg_color=self.colors['bg_button'],
+            hover_color=self.colors['primary'],
+            text_color=self.colors['text'],
             command=self.save_api_key
         )
-        self.save_key_button.pack(side="left")
+        self.save_btn.pack(side="left", padx=(0, 8))
+        
+        self.del_btn = ctk.CTkButton(
+            key_row,
+            text="删除",
+            width=80,
+            height=48,
+            corner_radius=12,
+            font=ctk.CTkFont(size=13),
+            fg_color=self.colors['bg_button'],
+            hover_color=self.colors['danger'],
+            text_color=self.colors['text'],
+            command=self.delete_api_key
+        )
+        self.del_btn.pack(side="left")
         
         # 查询按钮
-        self.query_button = ctk.CTkButton(
-            content_frame,
+        self.query_btn = ctk.CTkButton(
+            page,
             text="查询余额",
-            width=220,
-            height=50,
-            corner_radius=10,
-            font=ctk.CTkFont(size=18, weight="bold"),
+            width=200,
+            height=52,
+            corner_radius=14,
+            font=ctk.CTkFont(size=16, weight="bold"),
+            fg_color=self.colors['primary'],
+            hover_color=self.colors['primary_hover'],
+            text_color="white",
             command=self.query_balance
         )
-        self.query_button.pack(pady=(0, 20))
+        self.query_btn.pack(anchor="w", pady=(8, 20))
         
-        # 余额显示区域
-        self.balance_frame = ctk.CTkFrame(content_frame, corner_radius=8, fg_color="#ffffff")
-        self.balance_frame.pack(fill="both", expand=True)
+        # 结果区域
+        self.result_frame = self._create_card(page)
+        self.result_frame.pack(fill="both", expand=True)
         
-        self.balance_label = ctk.CTkLabel(
-            self.balance_frame,
-            text="请选择提供商、输入API密钥并点击查询按钮",
+        self.result_label = ctk.CTkLabel(
+            self.result_frame,
+            text="查询结果将在这里显示",
             font=ctk.CTkFont(size=14),
-            text_color="#666666"
+            text_color=self.colors['text_muted']
         )
-        self.balance_label.pack(pady=30)
+        self.result_label.pack(pady=60)
         
-        # 详细信息区域（初始隐藏）
-        self.info_frame = ctk.CTkFrame(self.balance_frame, corner_radius=0, fg_color="transparent")
+        self.info_container = ctk.CTkFrame(self.result_frame, corner_radius=0, fg_color="transparent")
         
-        # 状态标签
+        # 状态栏
         self.status_label = ctk.CTkLabel(
-            content_frame,
-            text="Token Manager - AI API余额查询工具",
-            font=ctk.CTkFont(size=13),
-            text_color="#666666"
+            page,
+            text="就绪",
+            font=ctk.CTkFont(size=12),
+            text_color=self.colors['text_muted']
         )
-        self.status_label.pack(pady=(15, 5))
+        self.status_label.pack(anchor="w", pady=(12, 0))
+        
+        return page
     
-    def on_provider_changed(self, provider_name: str):
-        """提供商改变时的回调"""
-        # 如果选择空，禁用按钮
-        if not provider_name:
-            self.current_provider = None
-            self.dashboard_button.configure(state="disabled")
-            self.api_key_entry.delete(0, 'end')
-            return
+    def _create_settings_page(self):
+        page = ctk.CTkFrame(self.content_area, corner_radius=0, fg_color="transparent")
         
-        # 找到对应的提供商
-        for key, provider in API_PROVIDERS.items():
-            if provider.name == provider_name:
-                self.current_provider = provider
-                self.dashboard_button.configure(state="normal")
-                break
+        self.settings_title = ctk.CTkLabel(
+            page,
+            text="设置",
+            font=ctk.CTkFont(size=32, weight="bold"),
+            text_color=self.colors['text']
+        )
+        self.settings_title.pack(anchor="w", pady=(0, 30))
         
-        # 加载该提供商的保存密钥
-        self.load_provider_key()
+        self.settings_card = self._create_card(page)
+        self.settings_card.pack(fill="x")
+        
+        self.about_label = ctk.CTkLabel(
+            self.settings_card,
+            text="关于",
+            font=ctk.CTkFont(size=16, weight="bold"),
+            text_color=self.colors['text']
+        )
+        self.about_label.pack(anchor="w", padx=24, pady=(24, 12))
+        
+        self.about_text = ctk.CTkLabel(
+            self.settings_card,
+            text="Token Manager v1.0\nAI API余额查询工具",
+            font=ctk.CTkFont(size=13),
+            text_color=self.colors['text_secondary']
+        )
+        self.about_text.pack(anchor="w", padx=24, pady=(0, 24))
+        
+        return page
+    
+    def _create_card(self, parent):
+        return ctk.CTkFrame(
+            parent,
+            corner_radius=16,
+            fg_color=self.colors['bg_card'],
+            border_width=1,
+            border_color=self.colors['border']
+        )
+    
+    def _show_home(self):
+        self.settings_page.pack_forget()
+        self.home_page.pack(fill="both", expand=True)
+        self.nav_home.configure(fg_color=self.colors['bg_card'], text_color=self.colors['text'])
+        self.nav_settings.configure(fg_color="transparent", text_color=self.colors['text_secondary'])
+    
+    def _show_settings(self):
+        self.home_page.pack_forget()
+        self.settings_page.pack(fill="both", expand=True)
+        self.nav_home.configure(fg_color="transparent", text_color=self.colors['text_secondary'])
+        self.nav_settings.configure(fg_color=self.colors['bg_card'], text_color=self.colors['text'])
     
     def open_dashboard(self):
         """打开管理界面"""
         if not self.current_provider:
-            self.status_label.configure(text="请先选择提供商", text_color="#dc3545")
+            self.status_label.configure(text="请先选择提供商", text_color=self.colors['danger'])
             return
         
-        dashboard_url = self.current_provider.dashboard_url
-        self.status_label.configure(
-            text=f"正在打开 {self.current_provider.name} 管理界面...",
-            text_color="#0078d4"
-        )
-        webbrowser.open(dashboard_url)
+        webbrowser.open(self.current_provider.dashboard_url)
+        self.status_label.configure(text=f"已打开 {self.current_provider.name} 官网", text_color=self.colors['primary'])
+    
+    def on_provider_changed(self, provider_name):
+        if not provider_name:
+            self.current_provider = None
+            self.web_btn.configure(state="disabled")
+            self.api_key_combo.set("")
+            self.api_key_combo.configure(values=[])
+            return
+        
+        for key, provider in API_PROVIDERS.items():
+            if provider.name == provider_name:
+                self.current_provider = provider
+                self.web_btn.configure(state="normal")
+                break
+        
+        self.load_provider_key()
     
     def load_settings(self):
-        """加载保存的设置"""
-        # 默认选择空
         self.provider_combo.set("")
         self.current_provider = None
-        self.dashboard_button.configure(state="disabled")
+        self.web_btn.configure(state="disabled")
         
         config_file = os.path.join(os.path.dirname(__file__), '.token_manager_settings')
         try:
@@ -420,117 +582,141 @@ class TokenManagerApp(ctk.CTk):
                 with open(config_file, 'r') as f:
                     settings = json.load(f)
                     
-                    # 加载选中的提供商
                     saved_provider = settings.get('provider', '')
                     if saved_provider and saved_provider in API_PROVIDERS:
                         self.provider_combo.set(API_PROVIDERS[saved_provider].name)
                         self.current_provider = API_PROVIDERS[saved_provider]
-                        self.dashboard_button.configure(state="normal")
+                        self.web_btn.configure(state="normal")
                     
-                    # 加载密钥
                     self.load_provider_key()
         except Exception:
             pass
     
     def load_provider_key(self):
-        """加载当前提供商的密钥"""
         if not self.current_provider:
             return
         
         provider_key = self.current_provider.name.lower()
-        config_file = os.path.join(os.path.dirname(__file__), f'.{provider_key}_key')
+        config_file = os.path.join(os.path.dirname(__file__), f'.{provider_key}_keys')
         
         try:
             if os.path.exists(config_file):
                 with open(config_file, 'r') as f:
-                    api_key = f.read().strip()
-                    if api_key:
-                        self.api_key_entry.delete(0, 'end')
-                        self.api_key_entry.insert(0, api_key)
+                    self.api_key_history[provider_key] = json.load(f)
+            else:
+                self.api_key_history[provider_key] = []
+            
+            self.api_key_combo.configure(values=self.api_key_history.get(provider_key, []))
+            
+            if self.api_key_history[provider_key]:
+                self.api_key_combo.set(self.api_key_history[provider_key][0])
+            else:
+                self.api_key_combo.set("")
         except Exception:
-            pass
-    
-    def save_settings(self):
-        """保存设置"""
-        if not self.current_provider:
-            return
-        
-        config_file = os.path.join(os.path.dirname(__file__), '.token_manager_settings')
-        try:
-            settings = {
-                'provider': self.current_provider.name.lower()
-            }
-            with open(config_file, 'w') as f:
-                json.dump(settings, f)
-        except Exception:
-            pass
+            self.api_key_history[provider_key] = []
+            self.api_key_combo.configure(values=[])
+            self.api_key_combo.set("")
     
     def save_api_key(self):
-        """保存API密钥"""
         if not self.current_provider:
-            self.status_label.configure(text="请先选择提供商", text_color="#dc3545")
+            self.status_label.configure(text="请先选择提供商", text_color=self.colors['danger'])
             return
         
-        api_key = self.api_key_entry.get().strip()
+        api_key = self.api_key_combo.get().strip()
         
         if not api_key:
-            self.status_label.configure(text="请输入API密钥", text_color="#dc3545")
+            self.status_label.configure(text="请输入API密钥", text_color=self.colors['danger'])
             return
         
         if not self.current_provider.validate_api_key(api_key):
             self.status_label.configure(
-                text=f"API密钥格式不正确，{self.current_provider.name}密钥应以'{self.current_provider.name}'的密钥格式开头",
-                text_color="#dc3545"
+                text=f"API密钥格式不正确",
+                text_color=self.colors['danger']
             )
             return
         
-        # 保存到对应提供商的密钥文件
         provider_key = self.current_provider.name.lower()
-        config_file = os.path.join(os.path.dirname(__file__), f'.{provider_key}_key')
+        
+        if provider_key not in self.api_key_history:
+            self.api_key_history[provider_key] = []
+        
+        if api_key not in self.api_key_history[provider_key]:
+            self.api_key_history[provider_key].insert(0, api_key)
+        
+        if len(self.api_key_history[provider_key]) > 10:
+            self.api_key_history[provider_key] = self.api_key_history[provider_key][:10]
+        
+        config_file = os.path.join(os.path.dirname(__file__), f'.{provider_key}_keys')
         
         try:
             with open(config_file, 'w') as f:
-                f.write(api_key)
-            self.status_label.configure(text=f"✓ {self.current_provider.name} API密钥已保存", text_color="#28a745")
+                json.dump(self.api_key_history[provider_key], f)
+            
+            self.api_key_combo.configure(values=self.api_key_history[provider_key])
+            self.status_label.configure(text="API密钥已保存", text_color=self.colors['success'])
         except Exception as e:
-            self.status_label.configure(text=f"保存失败: {str(e)}", text_color="#dc3545")
+            self.status_label.configure(text=f"保存失败: {str(e)}", text_color=self.colors['danger'])
+    
+    def delete_api_key(self):
+        if not self.current_provider:
+            self.status_label.configure(text="请先选择提供商", text_color=self.colors['danger'])
+            return
+        
+        api_key = self.api_key_combo.get().strip()
+        
+        if not api_key:
+            self.status_label.configure(text="请先选择要删除的密钥", text_color=self.colors['danger'])
+            return
+        
+        provider_key = self.current_provider.name.lower()
+        
+        if provider_key not in self.api_key_history or not self.api_key_history[provider_key]:
+            self.status_label.configure(text="没有可删除的密钥", text_color=self.colors['danger'])
+            return
+        
+        if api_key in self.api_key_history[provider_key]:
+            self.api_key_history[provider_key].remove(api_key)
+            
+            config_file = os.path.join(os.path.dirname(__file__), f'.{provider_key}_keys')
+            try:
+                with open(config_file, 'w') as f:
+                    json.dump(self.api_key_history[provider_key], f)
+                
+                self.api_key_combo.configure(values=self.api_key_history[provider_key])
+                self.api_key_combo.set("")
+                
+                self.status_label.configure(text="已删除密钥", text_color=self.colors['success'])
+            except Exception as e:
+                self.status_label.configure(text=f"删除失败: {str(e)}", text_color=self.colors['danger'])
+        else:
+            self.status_label.configure(text="该密钥不在历史记录中", text_color=self.colors['danger'])
     
     def query_balance(self):
-        """查询余额"""
         if not self.current_provider:
-            self.status_label.configure(text="请先选择提供商", text_color="#dc3545")
+            self.status_label.configure(text="请先选择提供商", text_color=self.colors['danger'])
             return
         
-        api_key = self.api_key_entry.get().strip()
+        api_key = self.api_key_combo.get().strip()
         if not api_key:
-            self.status_label.configure(text="请先保存API密钥", text_color="#dc3545")
+            self.status_label.configure(text="请先输入API密钥", text_color=self.colors['danger'])
             return
         
-        # 在新线程中执行查询
-        self.query_button.configure(state="disabled", text="查询中...")
-        self.status_label.configure(text="正在查询...", text_color="#0078d4")
+        self.query_btn.configure(state="disabled", text="查询中...")
+        self.status_label.configure(text="正在查询...", text_color=self.colors['primary'])
         
         thread = threading.Thread(target=self._query_balance_thread, args=(api_key,))
         thread.daemon = True
         thread.start()
     
     def _query_balance_thread(self, api_key: str):
-        """后台查询线程"""
         try:
             provider = self.current_provider
             url = provider.balance_endpoint
             
-            # 构建请求头
             if provider.auth_type == "bearer":
-                headers = {
-                    "Authorization": f"Bearer {api_key}",
-                    "Content-Type": "application/json"
-                }
+                headers = {"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"}
             else:
-                headers = {
-                    "x-api-key": api_key,
-                    "Content-Type": "application/json"
-                }
+                headers = {"x-api-key": api_key, "Content-Type": "application/json"}
             
             response = requests.get(url, headers=headers, timeout=30)
             
@@ -551,130 +737,213 @@ class TokenManagerApp(ctk.CTk):
                     pass
                 self.after(0, self._show_error, f"查询失败: {error_msg}")
         except requests.exceptions.Timeout:
-            self.after(0, self._show_error, "请求超时，请检查网络连接")
+            self.after(0, self._show_error, "请求超时")
         except requests.exceptions.ConnectionError:
-            self.after(0, self._show_error, "网络连接错误，请检查网络")
+            self.after(0, self._show_error, "网络连接错误")
         except Exception as e:
             self.after(0, self._show_error, f"查询异常: {str(e)}")
     
     def _display_balance(self, data):
-        """显示余额信息"""
-        self.query_button.configure(state="normal", text="查询余额")
+        self.query_btn.configure(state="normal", text="查询余额")
         self.status_label.configure(
             text=f"查询时间: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}",
-            text_color="#666666"
+            text_color=self.colors['success']
         )
         
-        # 清空现有显示
-        for widget in self.info_frame.winfo_children():
+        for widget in self.info_container.winfo_children():
             widget.destroy()
-        self.balance_label.destroy()
+        if self.result_label:
+            self.result_label.destroy()
         
-        # 解析余额数据
         try:
             balance_list = self.current_provider.parse_balance(data)
             
             if not balance_list:
-                self.balance_label = ctk.CTkLabel(
-                    self.balance_frame,
+                self.result_label = ctk.CTkLabel(
+                    self.result_frame,
                     text="未找到余额信息",
                     font=ctk.CTkFont(size=14),
-                    text_color="#666666"
+                    text_color=self.colors['text_muted']
                 )
-                self.balance_label.pack(pady=30)
+                self.result_label.pack(pady=40)
                 return
             
-            # 显示余额信息
             for balance_item in balance_list:
-                self._create_balance_card(balance_item)
+                self._create_balance_display(balance_item)
             
-            self.info_frame.pack(fill="both", expand=True, padx=10, pady=10)
+            self.info_container.pack(fill="both", expand=True, padx=24, pady=24)
             
         except Exception as e:
-            self.balance_label = ctk.CTkLabel(
-                self.balance_frame,
+            self.result_label = ctk.CTkLabel(
+                self.result_frame,
                 text=f"数据解析错误: {str(e)}",
                 font=ctk.CTkFont(size=14),
-                text_color="#dc3545"
+                text_color=self.colors['danger']
             )
-            self.balance_label.pack(pady=30)
+            self.result_label.pack(pady=40)
     
-    def _create_balance_card(self, balance_item: dict):
-        """创建余额卡片"""
+    def _create_balance_display(self, balance_item: dict):
         currency = balance_item.get('currency', 'USD')
         total = balance_item.get('total', 0)
         granted = balance_item.get('granted', 0)
         topped_up = balance_item.get('topped_up', 0)
         available = balance_item.get('available', total)
         
-        # 创建余额卡片
-        card = ctk.CTkFrame(self.info_frame, corner_radius=12, fg_color="#f8f9fa")
-        card.pack(fill="x", padx=15, pady=8)
+        # 余额大数字
+        big_balance = ctk.CTkFrame(self.info_container, corner_radius=0, fg_color="transparent")
+        big_balance.pack(fill="x", pady=(0, 20))
         
-        # 提供商名称
-        provider_label = ctk.CTkLabel(
-            card,
-            text=f"💰 {self.current_provider.name} ({currency})",
-            font=ctk.CTkFont(size=18, weight="bold"),
-            text_color="#333333"
-        )
-        provider_label.pack(anchor="w", padx=20, pady=(20, 15))
+        ctk.CTkLabel(
+            big_balance,
+            text=f"{available:.2f}",
+            font=ctk.CTkFont(size=48, weight="bold"),
+            text_color=self.colors['text']
+        ).pack(side="left")
         
-        # 余额详情
-        details_frame = ctk.CTkFrame(card, corner_radius=0, fg_color="transparent")
-        details_frame.pack(fill="x", padx=20, pady=(0, 20))
+        ctk.CTkLabel(
+            big_balance,
+            text=f" {currency}",
+            font=ctk.CTkFont(size=20),
+            text_color=self.colors['text_secondary']
+        ).pack(side="left", pady=(12, 0))
         
-        # 账户余额
-        available_text = f"账户余额: {available:.2f} {currency}"
-        available_label = ctk.CTkLabel(
-            details_frame,
-            text=available_text,
-            font=ctk.CTkFont(size=16, weight="bold"),
-            text_color="#0078d4"
-        )
-        available_label.pack(anchor="w", pady=4)
+        # 详情网格
+        grid = ctk.CTkFrame(self.info_container, corner_radius=0, fg_color="transparent")
+        grid.pack(fill="x")
         
-        # 总余额
+        items = []
         if total > 0:
-            total_text = f"总余额: {total:.2f} {currency}"
-            total_label = ctk.CTkLabel(
-                details_frame,
-                text=total_text,
-                font=ctk.CTkFont(size=14),
-                text_color="#333333"
-            )
-            total_label.pack(anchor="w", pady=4)
-        
-        # 赠送余额
+            items.append(("总余额", f"{total:.2f}", self.colors['text']))
         if granted > 0:
-            granted_text = f"赠送额度: {granted:.2f} {currency}"
-            granted_label = ctk.CTkLabel(
-                details_frame,
-                text=granted_text,
-                font=ctk.CTkFont(size=14),
-                text_color="#28a745"
-            )
-            granted_label.pack(anchor="w", pady=4)
-        
-        # 充值余额
+            items.append(("赠送额度", f"{granted:.2f}", self.colors['success']))
         if topped_up > 0:
-            topped_up_text = f"充值余额: {topped_up:.2f} {currency}"
-            topped_up_label = ctk.CTkLabel(
-                details_frame,
-                text=topped_up_text,
-                font=ctk.CTkFont(size=14),
-                text_color="#666666"
-            )
-            topped_up_label.pack(anchor="w", pady=4)
+            items.append(("充值余额", f"{topped_up:.2f}", self.colors['warning']))
+        
+        for label, value, color in items:
+            cell = ctk.CTkFrame(grid, corner_radius=12, fg_color=self.colors['bg'], border_width=1, border_color=self.colors['border'])
+            cell.pack(side="left", fill="x", expand=True, padx=(0, 10))
+            
+            ctk.CTkLabel(cell, text=label, font=ctk.CTkFont(size=11), text_color=self.colors['text_muted']).pack(pady=(14, 4))
+            ctk.CTkLabel(cell, text=value, font=ctk.CTkFont(size=16, weight="bold"), text_color=color).pack(pady=(0, 14))
     
     def _show_error(self, error_msg: str):
-        """显示错误信息"""
-        self.query_button.configure(state="normal", text="查询余额")
-        self.status_label.configure(text=f"✗ {error_msg}", text_color="#dc3545")
+        self.query_btn.configure(state="normal", text="查询余额")
+        self.status_label.configure(text=error_msg, text_color=self.colors['danger'])
+    
+    def toggle_theme(self):
+        """切换主题并立即刷新界面"""
+        self.is_dark_theme = not self.is_dark_theme
+        save_theme = 'light' if not self.is_dark_theme else 'dark'
+        
+        # 保存设置
+        config_file = os.path.join(os.path.dirname(__file__), '.token_manager_settings')
+        try:
+            settings = {}
+            if os.path.exists(config_file):
+                with open(config_file, 'r') as f:
+                    settings = json.load(f)
+            settings['theme'] = save_theme
+            with open(config_file, 'w') as f:
+                json.dump(settings, f)
+        except Exception:
+            pass
+        
+        # 更新外观模式
+        ctk.set_appearance_mode(save_theme)
+        
+        # 重新初始化配色
+        self._init_colors()
+        
+        # 刷新所有组件颜色
+        self._refresh_all_colors()
+        
+        # 更新主题按钮文字
+        self.theme_btn.configure(text="☀️ Light" if not self.is_dark_theme else "🌙 Dark")
+        self.status_label.configure(text="主题已切换", text_color=self.colors['success'])
+    
+    def _refresh_all_colors(self):
+        """刷新所有组件的颜色"""
+        # 主窗口
+        self.configure(fg_color=self.colors['bg'])
+        
+        # 主容器
+        self.main_frame.configure(fg_color=self.colors['bg'])
+        
+        # 侧边栏
+        self.sidebar.configure(fg_color=self.colors['bg_sidebar'])
+        self.sidebar_title_label.configure(text_color=self.colors['text'])
+        
+        # 导航按钮
+        self.nav_home.configure(
+            fg_color=self.colors['bg_card'] if self.home_page.winfo_ismapped() else "transparent",
+            hover_color=self.colors['bg_card'],
+            text_color=self.colors['text'] if self.home_page.winfo_ismapped() else self.colors['text_secondary']
+        )
+        self.nav_settings.configure(
+            fg_color=self.colors['bg_card'] if self.settings_page.winfo_ismapped() else "transparent",
+            hover_color=self.colors['bg_card'],
+            text_color=self.colors['text'] if self.settings_page.winfo_ismapped() else self.colors['text_secondary']
+        )
+        
+        # 主题按钮
+        self.theme_btn.configure(
+            fg_color=self.colors['bg_card'],
+            hover_color=self.colors['bg_hover'],
+            text_color=self.colors['text_secondary']
+        )
+        
+        # 内容区域
+        self.content_area.configure(fg_color=self.colors['bg'])
+        
+        # 首页标题
+        self.page_title.configure(text_color=self.colors['text'])
+        self.page_subtitle.configure(text_color=self.colors['text_muted'])
+        
+        # 提供商卡片
+        self.provider_card.configure(fg_color=self.colors['bg_card'], border_color=self.colors['border'])
+        self.provider_label.configure(text_color=self.colors['text_secondary'])
+        self.provider_combo.configure(
+            fg_color=self.colors['bg_input'],
+            dropdown_fg_color=self.colors['bg_card'],
+            dropdown_text_color=self.colors['text']
+        )
+        self.web_btn.configure(
+            fg_color=self.colors['bg_button'],
+            hover_color=self.colors['primary'],
+            text_color=self.colors['text_secondary']
+        )
+        
+        # API密钥卡片
+        self.key_card.configure(fg_color=self.colors['bg_card'], border_color=self.colors['border'])
+        self.key_label.configure(text_color=self.colors['text_secondary'])
+        self.key_subtitle.configure(text_color=self.colors['text_muted'])
+        self.api_key_combo.configure(
+            fg_color=self.colors['bg_input'],
+            dropdown_fg_color=self.colors['bg_card'],
+            dropdown_text_color=self.colors['text']
+        )
+        self.save_btn.configure(fg_color=self.colors['bg_button'], text_color=self.colors['text'])
+        self.del_btn.configure(fg_color=self.colors['bg_button'], text_color=self.colors['text'])
+        
+        # 查询按钮
+        self.query_btn.configure(fg_color=self.colors['primary'])
+        
+        # 结果区域
+        self.result_frame.configure(fg_color=self.colors['bg_card'], border_color=self.colors['border'])
+        if hasattr(self, 'result_label') and self.result_label:
+            self.result_label.configure(text_color=self.colors['text_muted'])
+        
+        # 状态栏
+        self.status_label.configure(text_color=self.colors['text_muted'])
+        
+        # 设置页面
+        self.settings_title.configure(text_color=self.colors['text'])
+        self.settings_card.configure(fg_color=self.colors['bg_card'], border_color=self.colors['border'])
+        self.about_label.configure(text_color=self.colors['text'])
+        self.about_text.configure(text_color=self.colors['text_secondary'])
 
 
 def main():
-    """主函数"""
     app = TokenManagerApp()
     app.mainloop()
 
