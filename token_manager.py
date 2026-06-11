@@ -255,6 +255,8 @@ class TokenManagerApp(ctk.CTk):
         
         self.current_provider = None
         self.balance_info = None
+        self.balance_data = []  # 保存余额数据供主题切换时使用
+        self.usage_results = []  # 保存用量数据供主题切换时使用
         self.api_key_history = {}
         self.is_dark_theme = (theme == 'dark')
         
@@ -302,10 +304,10 @@ class TokenManagerApp(ctk.CTk):
                 'success': '#22c55e',
                 'danger': '#ef4444',
                 'warning': '#f59e0b',
-                'text': '#18181b',
-                'text_secondary': '#52525b',
-                'text_muted': '#71717a',
-                'border': '#e4e4e7',
+                'text': '#000000',
+                'text_secondary': '#374151',
+                'text_muted': '#6b7280',
+                'border': '#d1d5db',
             }
     
     def create_widgets(self):
@@ -953,6 +955,7 @@ class TokenManagerApp(ctk.CTk):
                 text_color=self.colors['text_muted']
             )
             self.usage_result_label.pack(pady=40)
+            self.usage_results = []
             return
         
         valid_count = len(results)
@@ -967,6 +970,7 @@ class TokenManagerApp(ctk.CTk):
                 text_color=self.colors['text_muted']
             )
             self.usage_result_label.pack(pady=40)
+            self.usage_results = []
             return
         
         status_text = f"已显示 {valid_count} 个有效Token"
@@ -974,6 +978,9 @@ class TokenManagerApp(ctk.CTk):
             status_text += f"（{invalid_count} 个无效已过滤）"
         
         self.usage_status_label.configure(text=status_text, text_color=self.colors['success'])
+        
+        # 保存结果供主题切换时使用
+        self.usage_results = results
         
         for result in results:
             self._create_usage_card(result)
@@ -1134,7 +1141,11 @@ class TokenManagerApp(ctk.CTk):
                     text_color=self.colors['text_muted']
                 )
                 self.result_label.pack(pady=40)
+                self.balance_data = []
                 return
+            
+            # 保存余额数据供主题切换时使用
+            self.balance_data = balance_list
             
             for balance_item in balance_list:
                 self._create_balance_display(balance_item)
@@ -1149,6 +1160,7 @@ class TokenManagerApp(ctk.CTk):
                 text_color=self.colors['danger']
             )
             self.result_label.pack(pady=40)
+            self.balance_data = []
     
     def _create_balance_display(self, balance_item: dict):
         currency = balance_item.get('currency', 'USD')
@@ -1193,6 +1205,12 @@ class TokenManagerApp(ctk.CTk):
             
             ctk.CTkLabel(cell, text=label, font=ctk.CTkFont(size=11), text_color=self.colors['text_muted']).pack(pady=(14, 4))
             ctk.CTkLabel(cell, text=value, font=ctk.CTkFont(size=16, weight="bold"), text_color=color).pack(pady=(0, 14))
+    
+    def _recreate_balance_cards(self):
+        """重新创建余额卡片"""
+        for balance_item in self.balance_data:
+            self._create_balance_display(balance_item)
+        self.info_container.pack(fill="both", expand=True, padx=24, pady=24)
     
     def _show_error(self, error_msg: str):
         self.query_btn.configure(state="normal", text="查询余额")
@@ -1325,6 +1343,50 @@ class TokenManagerApp(ctk.CTk):
         self.settings_card.configure(fg_color=self.colors['bg_card'], border_color=self.colors['border'])
         self.about_label.configure(text_color=self.colors['text'])
         self.about_text.configure(text_color=self.colors['text_secondary'])
+        
+        # 刷新动态创建的卡片（余额卡片、用量卡片、关于卡片）
+        self._refresh_dynamic_cards()
+    
+    def _refresh_dynamic_cards(self):
+        """刷新动态创建的卡片颜色 - 通过销毁并重新创建"""
+        # 更新余额卡片 - 销毁并重新创建
+        if hasattr(self, 'info_container') and self.info_container.winfo_exists():
+            for widget in self.info_container.winfo_children():
+                widget.destroy()
+            # 重新创建余额卡片
+            if hasattr(self, 'balance_data') and self.balance_data:
+                self._recreate_balance_cards()
+        
+        # 更新用量卡片 - 销毁并重新创建
+        if hasattr(self, 'usage_container') and self.usage_container.winfo_exists():
+            for widget in self.usage_container.winfo_children():
+                widget.destroy()
+            # 重新创建用量卡片
+            if hasattr(self, 'usage_results') and self.usage_results:
+                for result in self.usage_results:
+                    self._create_usage_card(result)
+                self.usage_container.pack(fill="both", expand=True, padx=24, pady=24)
+        
+        # 更新关于卡片 - 直接更新颜色
+        if hasattr(self, 'settings_card') and self.settings_card.winfo_exists():
+            self.settings_card.configure(fg_color=self.colors['bg_card'], border_color=self.colors['border'])
+            for child in self.settings_card.winfo_children():
+                self._update_card_child_colors(child)
+    
+    def _update_card_child_colors(self, widget):
+        """递归更新卡片内子组件的颜色"""
+        if isinstance(widget, ctk.CTkFrame):
+            current_fg = str(widget.cget('fg_color')).lower()
+            if current_fg not in ['transparent', 'none', '']:
+                widget.configure(fg_color=self.colors['bg_hover'])
+            for child in widget.winfo_children():
+                self._update_card_child_colors(child)
+        elif isinstance(widget, ctk.CTkLabel):
+            current_color = str(widget.cget('text_color')).lower()
+            if current_color in ['#18181b', '#000000', '#fafafa', '#f5f5f5', '#ffffff', '#e5e5e5', 'system']:
+                widget.configure(text_color=self.colors['text'])
+            elif current_color in ['#52525b', '#a1a1aa', '#71717a', '#374151', '#6b7280']:
+                widget.configure(text_color=self.colors['text_secondary'])
 
 
 def main():
