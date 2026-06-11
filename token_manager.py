@@ -206,40 +206,9 @@ class OpenAIProvider(APIProvider):
         return api_key.startswith('sk-')
 
 
-class AnthropicProvider(APIProvider):
-    @property
-    def name(self): return "Anthropic"
-    @property
-    def balance_endpoint(self): return "https://api.anthropic.com/v1/account"
-    @property
-    def usage_endpoint(self): return "https://api.anthropic.com/v1/account"
-    @property
-    def auth_type(self): return "api_key"
-    @property
-    def dashboard_url(self): return "https://console.anthropic.com/"
-    def parse_balance(self, data: dict) -> list:
-        return [{
-            'currency': 'USD',
-            'total': data.get('spending_limit', 0) / 100 if data.get('spending_limit') else 0,
-            'granted': 0,
-            'topped_up': 0,
-            'available': data.get('spending_limit', 0) / 100 if data.get('spending_limit') else 0
-        }]
-    def parse_usage(self, data: dict) -> dict:
-        return {
-            'currency': 'USD',
-            'used_today': 0,
-            'used_month': 0,
-            'total_used': 0
-        }
-    def validate_api_key(self, api_key: str) -> bool:
-        return api_key.startswith('sk-ant-')
-
-
 API_PROVIDERS = {
     'deepseek': DeepSeekProvider(),
     'openai': OpenAIProvider(),
-    'anthropic': AnthropicProvider(),
 }
 
 
@@ -1063,7 +1032,7 @@ class TokenManagerApp(ctk.CTk):
     
     def _get_provider_icon(self, provider_name: str) -> str:
         """获取提供商图标"""
-        icons = {"DeepSeek": "🤖", "OpenAI": "✨", "Anthropic": "💬"}
+        icons = {"DeepSeek": "🤖", "OpenAI": "✨"}
         return icons.get(provider_name, "💰")
     
     def query_balance(self):
@@ -1323,8 +1292,11 @@ class TokenManagerApp(ctk.CTk):
         
         # 结果区域
         self.result_frame.configure(fg_color=self.colors['bg_card'], border_color=self.colors['border'])
-        if hasattr(self, 'result_label') and self.result_label:
+        if hasattr(self, 'result_label') and self.result_label and self.result_label.winfo_exists():
             self.result_label.configure(text_color=self.colors['text_muted'])
+        
+        # 刷新余额卡片
+        self._update_balance_cards()
         
         # 状态栏
         self.status_label.configure(text_color=self.colors['text_muted'])
@@ -1344,49 +1316,60 @@ class TokenManagerApp(ctk.CTk):
         self.about_label.configure(text_color=self.colors['text'])
         self.about_text.configure(text_color=self.colors['text_secondary'])
         
-        # 刷新动态创建的卡片（余额卡片、用量卡片、关于卡片）
-        self._refresh_dynamic_cards()
+        # 更新关于卡片的子元素颜色
+        self._update_about_card_colors()
     
-    def _refresh_dynamic_cards(self):
-        """刷新动态创建的卡片颜色 - 通过销毁并重新创建"""
-        # 更新余额卡片 - 销毁并重新创建
-        if hasattr(self, 'info_container') and self.info_container.winfo_exists():
-            for widget in self.info_container.winfo_children():
-                widget.destroy()
-            # 重新创建余额卡片
-            if hasattr(self, 'balance_data') and self.balance_data:
-                self._recreate_balance_cards()
+    def _update_balance_cards(self):
+        """更新余额卡片的所有子元素颜色"""
+        if not hasattr(self, 'info_container') or not self.info_container.winfo_exists():
+            return
         
-        # 更新用量卡片 - 销毁并重新创建
-        if hasattr(self, 'usage_container') and self.usage_container.winfo_exists():
-            for widget in self.usage_container.winfo_children():
-                widget.destroy()
-            # 重新创建用量卡片
-            if hasattr(self, 'usage_results') and self.usage_results:
-                for result in self.usage_results:
-                    self._create_usage_card(result)
-                self.usage_container.pack(fill="both", expand=True, padx=24, pady=24)
-        
-        # 更新关于卡片 - 直接更新颜色
-        if hasattr(self, 'settings_card') and self.settings_card.winfo_exists():
-            self.settings_card.configure(fg_color=self.colors['bg_card'], border_color=self.colors['border'])
-            for child in self.settings_card.winfo_children():
-                self._update_card_child_colors(child)
+        for child in self.info_container.winfo_children():
+            if isinstance(child, ctk.CTkFrame):
+                current_fg = str(child.cget('fg_color')).lower()
+                if current_fg not in ['transparent', 'none', '']:
+                    # 这是余额详情卡片（cell）
+                    child.configure(fg_color=self.colors['bg'], border_color=self.colors['border'])
+                    for subchild in child.winfo_children():
+                        if isinstance(subchild, ctk.CTkLabel):
+                            current_color = str(subchild.cget('text_color')).lower()
+                            if current_color in ['#22c55e', '#22c55e']:  # success色
+                                subchild.configure(text_color=self.colors['success'])
+                            elif current_color in ['#f59e0b', '#f59e0b']:  # warning色
+                                subchild.configure(text_color=self.colors['warning'])
+                            elif current_color in ['#18181b', '#000000', '#fafafa', '#f5f5f5', '#ffffff', '#e5e5e5', 'system']:
+                                subchild.configure(text_color=self.colors['text'])
+                            elif current_color in ['#52525b', '#a1a1aa', '#71717a', '#374151', '#6b7280']:
+                                subchild.configure(text_color=self.colors['text_muted'])
+                else:
+                    # 这是余额大数字框架（big_balance），更新其中的标签颜色
+                    for subchild in child.winfo_children():
+                        if isinstance(subchild, ctk.CTkLabel):
+                            current_color = str(subchild.cget('text_color')).lower()
+                            if current_color in ['#18181b', '#000000', '#fafafa', '#f5f5f5', '#ffffff', '#e5e5e5', 'system']:
+                                subchild.configure(text_color=self.colors['text'])
+                            elif current_color in ['#52525b', '#a1a1aa', '#71717a', '#374151', '#6b7280']:
+                                subchild.configure(text_color=self.colors['text_secondary'])
     
-    def _update_card_child_colors(self, widget):
-        """递归更新卡片内子组件的颜色"""
-        if isinstance(widget, ctk.CTkFrame):
-            current_fg = str(widget.cget('fg_color')).lower()
-            if current_fg not in ['transparent', 'none', '']:
-                widget.configure(fg_color=self.colors['bg_hover'])
-            for child in widget.winfo_children():
-                self._update_card_child_colors(child)
-        elif isinstance(widget, ctk.CTkLabel):
-            current_color = str(widget.cget('text_color')).lower()
-            if current_color in ['#18181b', '#000000', '#fafafa', '#f5f5f5', '#ffffff', '#e5e5e5', 'system']:
-                widget.configure(text_color=self.colors['text'])
-            elif current_color in ['#52525b', '#a1a1aa', '#71717a', '#374151', '#6b7280']:
-                widget.configure(text_color=self.colors['text_secondary'])
+    def _update_about_card_colors(self):
+        """更新关于卡片的所有子元素颜色"""
+        for child in self.settings_card.winfo_children():
+            if isinstance(child, ctk.CTkFrame):
+                child.configure(fg_color=self.colors['bg_hover'])
+                for subchild in child.winfo_children():
+                    if isinstance(subchild, ctk.CTkLabel):
+                        current_color = str(subchild.cget('text_color')).lower()
+                        if current_color in ['#18181b', '#000000', '#fafafa', '#f5f5f5', '#ffffff', '#e5e5e5', 'system']:
+                            subchild.configure(text_color=self.colors['text'])
+                        elif current_color in ['#52525b', '#a1a1aa', '#71717a', '#374151', '#6b7280']:
+                            subchild.configure(text_color=self.colors['text_secondary'])
+            elif isinstance(child, ctk.CTkLabel):
+                # 直接的CTkLabel子元素（如about_label和about_text）
+                current_color = str(child.cget('text_color')).lower()
+                if current_color in ['#18181b', '#000000', '#fafafa', '#f5f5f5', '#ffffff', '#e5e5e5', 'system']:
+                    child.configure(text_color=self.colors['text'])
+                elif current_color in ['#52525b', '#a1a1aa', '#71717a', '#374151', '#6b7280']:
+                    child.configure(text_color=self.colors['text_secondary'])
 
 
 def main():
