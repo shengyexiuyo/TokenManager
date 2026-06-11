@@ -88,6 +88,11 @@ class APIProvider(ABC):
     
     @property
     @abstractmethod
+    def usage_endpoint(self) -> str:
+        pass
+    
+    @property
+    @abstractmethod
     def auth_type(self) -> str:
         pass
     
@@ -101,6 +106,10 @@ class APIProvider(ABC):
         pass
     
     @abstractmethod
+    def parse_usage(self, data: dict) -> dict:
+        pass
+    
+    @abstractmethod
     def validate_api_key(self, api_key: str) -> bool:
         pass
 
@@ -110,6 +119,8 @@ class DeepSeekProvider(APIProvider):
     def name(self): return "DeepSeek"
     @property
     def balance_endpoint(self): return "https://api.deepseek.com/user/balance"
+    @property
+    def usage_endpoint(self): return "https://api.deepseek.com/user/balance"
     @property
     def auth_type(self): return "bearer"
     @property
@@ -126,6 +137,17 @@ class DeepSeekProvider(APIProvider):
                 'available': float(item.get('total_balance', '0'))
             })
         return result
+    def parse_usage(self, data: dict) -> dict:
+        balance_list = data.get('balance_infos', [])
+        if balance_list:
+            item = balance_list[0]
+            return {
+                'currency': item.get('currency', 'CNY'),
+                'used_today': 0,
+                'used_month': 0,
+                'total_used': float(item.get('total_balance', '0')) - float(item.get('available_balance', item.get('total_balance', '0')))
+            }
+        return {'currency': 'CNY', 'used_today': 0, 'used_month': 0, 'total_used': 0}
     def validate_api_key(self, api_key: str) -> bool:
         return api_key.startswith('sk-')
 
@@ -135,6 +157,8 @@ class OpenAIProvider(APIProvider):
     def name(self): return "OpenAI"
     @property
     def balance_endpoint(self): return "https://api.openai.com/v1/dashboard/billing/subscription"
+    @property
+    def usage_endpoint(self): return "https://api.openai.com/v1/dashboard/billing/usage"
     @property
     def auth_type(self): return "bearer"
     @property
@@ -146,6 +170,28 @@ class OpenAIProvider(APIProvider):
             'has_subscription': data.get('has_payment_method', False),
             'plan_name': data.get('plan', {}).get('title', 'N/A')
         }]
+    def parse_usage(self, data: dict) -> dict:
+        daily_costs = data.get('daily_costs', [])
+        today_usage = 0
+        month_usage = 0
+        
+        if daily_costs:
+            # 计算本月用量
+            for day in daily_costs:
+                day_total = sum(item.get('cost', 0) for item in day.get('line_items', []))
+                month_usage += day_total
+            
+            # 计算今日用量（最后一天）
+            if daily_costs:
+                last_day = daily_costs[-1]
+                today_usage = sum(item.get('cost', 0) for item in last_day.get('line_items', []))
+        
+        return {
+            'currency': 'USD',
+            'used_today': round(today_usage, 4),
+            'used_month': round(month_usage, 4),
+            'total_used': round(month_usage, 4)
+        }
     def validate_api_key(self, api_key: str) -> bool:
         return api_key.startswith('sk-')
 
@@ -155,6 +201,8 @@ class AnthropicProvider(APIProvider):
     def name(self): return "Anthropic"
     @property
     def balance_endpoint(self): return "https://api.anthropic.com/v1/account"
+    @property
+    def usage_endpoint(self): return "https://api.anthropic.com/v1/account"
     @property
     def auth_type(self): return "api_key"
     @property
@@ -167,6 +215,13 @@ class AnthropicProvider(APIProvider):
             'topped_up': 0,
             'available': data.get('spending_limit', 0) / 100 if data.get('spending_limit') else 0
         }]
+    def parse_usage(self, data: dict) -> dict:
+        return {
+            'currency': 'USD',
+            'used_today': 0,
+            'used_month': 0,
+            'total_used': 0
+        }
     def validate_api_key(self, api_key: str) -> bool:
         return api_key.startswith('sk-ant-')
 
@@ -249,7 +304,7 @@ class TokenManagerApp(ctk.CTk):
         self.main_frame.pack(fill="both", expand=True)
         
         # ========== 左侧边栏 ==========
-        self.sidebar = ctk.CTkFrame(self.main_frame, corner_radius=0, width=200, fg_color=self.colors['bg_sidebar'])
+        self.sidebar = ctk.CTkFrame(self.main_frame, corner_radius=0, width=240, fg_color=self.colors['bg_sidebar'])
         self.sidebar.pack(side="left", fill="y")
         self.sidebar.pack_propagate(False)
         
@@ -269,6 +324,9 @@ class TokenManagerApp(ctk.CTk):
         # 导航按钮
         self.nav_home = self._create_nav_button(self.sidebar, "🏠 首页", True)
         self.nav_home.configure(command=self._show_home)
+        
+        self.nav_usage = self._create_nav_button(self.sidebar, "📊 用量", False)
+        self.nav_usage.configure(command=self._show_usage)
         
         self.nav_settings = self._create_nav_button(self.sidebar, "⚙️ 设置", False)
         self.nav_settings.configure(command=self._show_settings)
@@ -296,6 +354,7 @@ class TokenManagerApp(ctk.CTk):
         
         # 创建页面
         self.home_page = self._create_home_page()
+        self.usage_page = self._create_usage_page()
         self.settings_page = self._create_settings_page()
         
         self._show_home()
@@ -493,6 +552,65 @@ class TokenManagerApp(ctk.CTk):
         
         return page
     
+    def _create_usage_page(self):
+        page = ctk.CTkFrame(self.content_area, corner_radius=0, fg_color="transparent")
+        
+        self.usage_title = ctk.CTkLabel(
+            page,
+            text="用量统计",
+            font=ctk.CTkFont(size=32, weight="bold"),
+            text_color=self.colors['text']
+        )
+        self.usage_title.pack(anchor="w", pady=(0, 8))
+        
+        self.usage_subtitle = ctk.CTkLabel(
+            page,
+            text="查询已保存Token的每日用量",
+            font=ctk.CTkFont(size=14),
+            text_color=self.colors['text_muted']
+        )
+        self.usage_subtitle.pack(anchor="w", pady=(0, 30))
+        
+        # 刷新按钮
+        self.refresh_usage_btn = ctk.CTkButton(
+            page,
+            text="🔄 刷新用量",
+            width=200,
+            height=52,
+            corner_radius=14,
+            font=ctk.CTkFont(size=16, weight="bold"),
+            fg_color=self.colors['primary'],
+            hover_color=self.colors['primary_hover'],
+            text_color="white",
+            command=self.query_all_usage
+        )
+        self.refresh_usage_btn.pack(anchor="w", pady=(0, 20))
+        
+        # 用量结果区域
+        self.usage_result_frame = self._create_card(page)
+        self.usage_result_frame.pack(fill="both", expand=True)
+        
+        self.usage_result_label = ctk.CTkLabel(
+            self.usage_result_frame,
+            text="点击刷新按钮查询已保存Token的用量",
+            font=ctk.CTkFont(size=14),
+            text_color=self.colors['text_muted']
+        )
+        self.usage_result_label.pack(pady=60)
+        
+        self.usage_container = ctk.CTkFrame(self.usage_result_frame, corner_radius=0, fg_color="transparent")
+        
+        # 状态栏
+        self.usage_status_label = ctk.CTkLabel(
+            page,
+            text="就绪",
+            font=ctk.CTkFont(size=12),
+            text_color=self.colors['text_muted']
+        )
+        self.usage_status_label.pack(anchor="w", pady=(12, 0))
+        
+        return page
+
     def _create_settings_page(self):
         page = ctk.CTkFrame(self.content_area, corner_radius=0, fg_color="transparent")
         
@@ -536,14 +654,26 @@ class TokenManagerApp(ctk.CTk):
     
     def _show_home(self):
         self.settings_page.pack_forget()
+        self.usage_page.pack_forget()
         self.home_page.pack(fill="both", expand=True)
         self.nav_home.configure(fg_color=self.colors['bg_card'], text_color=self.colors['text'])
+        self.nav_usage.configure(fg_color="transparent", text_color=self.colors['text_secondary'])
+        self.nav_settings.configure(fg_color="transparent", text_color=self.colors['text_secondary'])
+    
+    def _show_usage(self):
+        self.home_page.pack_forget()
+        self.settings_page.pack_forget()
+        self.usage_page.pack(fill="both", expand=True)
+        self.nav_home.configure(fg_color="transparent", text_color=self.colors['text_secondary'])
+        self.nav_usage.configure(fg_color=self.colors['bg_card'], text_color=self.colors['text'])
         self.nav_settings.configure(fg_color="transparent", text_color=self.colors['text_secondary'])
     
     def _show_settings(self):
         self.home_page.pack_forget()
+        self.usage_page.pack_forget()
         self.settings_page.pack(fill="both", expand=True)
         self.nav_home.configure(fg_color="transparent", text_color=self.colors['text_secondary'])
+        self.nav_usage.configure(fg_color="transparent", text_color=self.colors['text_secondary'])
         self.nav_settings.configure(fg_color=self.colors['bg_card'], text_color=self.colors['text'])
     
     def open_dashboard(self):
@@ -690,6 +820,232 @@ class TokenManagerApp(ctk.CTk):
                 self.status_label.configure(text=f"删除失败: {str(e)}", text_color=self.colors['danger'])
         else:
             self.status_label.configure(text="该密钥不在历史记录中", text_color=self.colors['danger'])
+    
+    def query_all_usage(self):
+        """查询所有已保存Token的用量"""
+        self.refresh_usage_btn.configure(state="disabled", text="查询中...")
+        self.usage_status_label.configure(text="正在查询所有已保存Token的用量...", text_color=self.colors['primary'])
+        
+        # 清空之前的用量显示
+        for widget in self.usage_container.winfo_children():
+            widget.destroy()
+        if self.usage_result_label:
+            self.usage_result_label.destroy()
+        
+        thread = threading.Thread(target=self._query_all_usage_thread)
+        thread.daemon = True
+        thread.start()
+    
+    def _query_all_usage_thread(self):
+        """后台查询所有已保存Token的用量"""
+        all_results = []
+        total_keys = 0
+        
+        for provider_key, provider in API_PROVIDERS.items():
+            keys = self.api_key_history.get(provider_key, [])
+            if not keys:
+                # 尝试从文件加载
+                config_file = os.path.join(os.path.dirname(__file__), f'.{provider_key}_keys')
+                try:
+                    if os.path.exists(config_file):
+                        with open(config_file, 'r') as f:
+                            keys = json.load(f)
+                            self.api_key_history[provider_key] = keys
+                except Exception:
+                    continue
+            
+            for api_key in keys:
+                total_keys += 1
+                try:
+                    # 先查询余额
+                    balance_url = provider.balance_endpoint
+                    if provider.auth_type == "bearer":
+                        headers = {"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"}
+                    else:
+                        headers = {"x-api-key": api_key, "Content-Type": "application/json"}
+                    
+                    balance_response = requests.get(balance_url, headers=headers, timeout=30)
+                    balance_data = None
+                    if balance_response.status_code == 200:
+                        balance_result = provider.parse_balance(balance_response.json())
+                        if balance_result:
+                            balance_data = balance_result[0]
+                    
+                    # 再查询用量
+                    usage_url = provider.usage_endpoint
+                    usage_data = None
+                    try:
+                        if provider.name == "OpenAI":
+                            from datetime import datetime, timedelta
+                            today = datetime.now().date()
+                            first_day = today.replace(day=1)
+                            next_month = (today.replace(day=28) + timedelta(days=4)).replace(day=1)
+                            params = {
+                                'start_date': first_day.isoformat(),
+                                'end_date': next_month.isoformat()
+                            }
+                            usage_response = requests.get(usage_url, headers=headers, params=params, timeout=30)
+                        else:
+                            usage_response = requests.get(usage_url, headers=headers, timeout=30)
+                        
+                        if usage_response.status_code == 200:
+                            usage_data = provider.parse_usage(usage_response.json())
+                    except Exception:
+                        pass
+                    
+                    # 合并结果
+                    result = {
+                        'provider': provider.name,
+                        'api_key_masked': api_key[:8] + "****" + api_key[-4:] if len(api_key) > 12 else api_key[:4] + "****"
+                    }
+                    
+                    has_valid_data = False
+                    
+                    if balance_data:
+                        result.update({
+                            'balance_currency': balance_data.get('currency', 'USD'),
+                            'balance_total': balance_data.get('total', 0),
+                            'balance_granted': balance_data.get('granted', 0),
+                            'balance_topped_up': balance_data.get('topped_up', 0),
+                            'balance_available': balance_data.get('available', 0)
+                        })
+                        has_valid_data = True
+                    
+                    if usage_data:
+                        result.update({
+                            'usage_currency': usage_data.get('currency', 'USD'),
+                            'used_today': usage_data.get('used_today', 0),
+                            'used_month': usage_data.get('used_month', 0),
+                            'total_used': usage_data.get('total_used', 0)
+                        })
+                        has_valid_data = True
+                    
+                    # 只添加有有效数据的结果
+                    if has_valid_data:
+                        all_results.append(result)
+                except Exception:
+                    pass
+        
+        self.after(0, self._display_all_usage, all_results, total_keys)
+    
+    def _display_all_usage(self, results: list, total_keys: int):
+        """显示所有Token的用量信息"""
+        self.refresh_usage_btn.configure(state="normal", text="🔄 刷新用量")
+        
+        if total_keys == 0:
+            self.usage_status_label.configure(text="没有已保存的Token", text_color=self.colors['warning'])
+            self.usage_result_label = ctk.CTkLabel(
+                self.usage_result_frame,
+                text="暂无已保存的Token，请先在首页保存API密钥",
+                font=ctk.CTkFont(size=14),
+                text_color=self.colors['text_muted']
+            )
+            self.usage_result_label.pack(pady=40)
+            return
+        
+        valid_count = len(results)
+        invalid_count = total_keys - valid_count
+        
+        if valid_count == 0:
+            self.usage_status_label.configure(text=f"所有 {total_keys} 个Token均无效", text_color=self.colors['danger'])
+            self.usage_result_label = ctk.CTkLabel(
+                self.usage_result_frame,
+                text="所有已保存的Token均无法使用，请检查密钥是否有效",
+                font=ctk.CTkFont(size=14),
+                text_color=self.colors['text_muted']
+            )
+            self.usage_result_label.pack(pady=40)
+            return
+        
+        status_text = f"已显示 {valid_count} 个有效Token"
+        if invalid_count > 0:
+            status_text += f"（{invalid_count} 个无效已过滤）"
+        
+        self.usage_status_label.configure(text=status_text, text_color=self.colors['success'])
+        
+        for result in results:
+            self._create_usage_card(result)
+        
+        self.usage_container.pack(fill="both", expand=True, padx=24, pady=24)
+    
+    def _create_usage_card(self, result: dict):
+        """创建用量卡片"""
+        card = ctk.CTkFrame(self.usage_container, corner_radius=12, fg_color=self.colors['bg'], border_width=1, border_color=self.colors['border'])
+        card.pack(fill="x", pady=8)
+        
+        # 头部：提供商 + 密钥
+        header = ctk.CTkFrame(card, corner_radius=0, fg_color="transparent")
+        header.pack(fill="x", padx=16, pady=(12, 8))
+        
+        ctk.CTkLabel(header, text=f"{self._get_provider_icon(result['provider'])} {result['provider']}", 
+                    font=ctk.CTkFont(size=14, weight="bold"), text_color=self.colors['text']).pack(side="left")
+        ctk.CTkLabel(header, text=f"  {result['api_key_masked']}", 
+                    font=ctk.CTkFont(size=12), text_color=self.colors['text_muted']).pack(side="left")
+        
+        # 余额数据
+        balance_frame = ctk.CTkFrame(card, corner_radius=0, fg_color="transparent")
+        balance_frame.pack(fill="x", padx=16, pady=(0, 8))
+        
+        balance_title = ctk.CTkLabel(balance_frame, text="💰 余额", font=ctk.CTkFont(size=12, weight="bold"), text_color=self.colors['text_secondary'])
+        balance_title.pack(anchor="w", pady=(0, 6))
+        
+        balance_grid = ctk.CTkFrame(card, corner_radius=0, fg_color="transparent")
+        balance_grid.pack(fill="x", padx=16, pady=(0, 8))
+        
+        balance_items = []
+        if 'balance_available' in result:
+            currency = result.get('balance_currency', 'USD')
+            balance_items.append(("可用余额", f"{result.get('balance_available', 0):.2f} {currency}", self.colors['success']))
+            if result.get('balance_total', 0) > 0:
+                balance_items.append(("总余额", f"{result.get('balance_total', 0):.2f} {currency}", self.colors['text']))
+            if result.get('balance_granted', 0) > 0:
+                balance_items.append(("赠送额度", f"{result.get('balance_granted', 0):.2f} {currency}", self.colors['warning']))
+            if result.get('balance_topped_up', 0) > 0:
+                balance_items.append(("充值余额", f"{result.get('balance_topped_up', 0):.2f} {currency}", self.colors['accent']))
+        
+        for label, value, color in balance_items:
+            cell = ctk.CTkFrame(balance_grid, corner_radius=8, fg_color=self.colors['bg_card'])
+            cell.pack(side="left", fill="x", expand=True, padx=(0, 8))
+            ctk.CTkLabel(cell, text=label, font=ctk.CTkFont(size=11), text_color=self.colors['text_muted']).pack(pady=(8, 2))
+            ctk.CTkLabel(cell, text=value, font=ctk.CTkFont(size=13, weight="bold"), text_color=color).pack(pady=(0, 8))
+        
+        # 分隔线
+        if balance_items:
+            separator = ctk.CTkFrame(card, corner_radius=0, height=1, fg_color=self.colors['border'])
+            separator.pack(fill="x", padx=16, pady=(8, 8))
+        
+        # 用量数据
+        usage_frame = ctk.CTkFrame(card, corner_radius=0, fg_color="transparent")
+        usage_frame.pack(fill="x", padx=16, pady=(0, 12))
+        
+        usage_title = ctk.CTkLabel(usage_frame, text="📊 用量", font=ctk.CTkFont(size=12, weight="bold"), text_color=self.colors['text_secondary'])
+        usage_title.pack(anchor="w", pady=(0, 6))
+        
+        usage_grid = ctk.CTkFrame(card, corner_radius=0, fg_color="transparent")
+        usage_grid.pack(fill="x", padx=16, pady=(0, 12))
+        
+        usage_items = []
+        currency = result.get('usage_currency', result.get('balance_currency', 'USD'))
+        if 'used_today' in result:
+            usage_items.append(("今日用量", f"{result.get('used_today', 0):.2f} {currency}", self.colors['text']))
+        if 'used_month' in result:
+            usage_items.append(("本月用量", f"{result.get('used_month', 0):.2f} {currency}", self.colors['text']))
+        if 'total_used' in result:
+            usage_items.append(("累计使用", f"{result.get('total_used', 0):.2f} {currency}", self.colors['text_secondary']))
+        
+        if not usage_items:
+            usage_items.append(("用量", "暂无数据", self.colors['text_muted']))
+        
+        for label, value, color in usage_items:
+            cell = ctk.CTkFrame(usage_grid, corner_radius=8, fg_color=self.colors['bg_card'])
+            cell.pack(side="left", fill="x", expand=True, padx=(0, 8))
+            ctk.CTkLabel(cell, text=label, font=ctk.CTkFont(size=11), text_color=self.colors['text_muted']).pack(pady=(8, 2))
+            ctk.CTkLabel(cell, text=value, font=ctk.CTkFont(size=13, weight="bold"), text_color=color).pack(pady=(0, 8))
+    
+    def _get_provider_icon(self, provider_name: str) -> str:
+        """获取提供商图标"""
+        icons = {"DeepSeek": "🤖", "OpenAI": "✨", "Anthropic": "💬"}
+        return icons.get(provider_name, "💰")
     
     def query_balance(self):
         if not self.current_provider:
@@ -879,6 +1235,11 @@ class TokenManagerApp(ctk.CTk):
             hover_color=self.colors['bg_card'],
             text_color=self.colors['text'] if self.home_page.winfo_ismapped() else self.colors['text_secondary']
         )
+        self.nav_usage.configure(
+            fg_color=self.colors['bg_card'] if self.usage_page.winfo_ismapped() else "transparent",
+            hover_color=self.colors['bg_card'],
+            text_color=self.colors['text'] if self.usage_page.winfo_ismapped() else self.colors['text_secondary']
+        )
         self.nav_settings.configure(
             fg_color=self.colors['bg_card'] if self.settings_page.winfo_ismapped() else "transparent",
             hover_color=self.colors['bg_card'],
@@ -935,6 +1296,15 @@ class TokenManagerApp(ctk.CTk):
         
         # 状态栏
         self.status_label.configure(text_color=self.colors['text_muted'])
+        
+        # 用量页面
+        self.usage_title.configure(text_color=self.colors['text'])
+        self.usage_subtitle.configure(text_color=self.colors['text_muted'])
+        self.refresh_usage_btn.configure(fg_color=self.colors['primary'])
+        self.usage_result_frame.configure(fg_color=self.colors['bg_card'], border_color=self.colors['border'])
+        if hasattr(self, 'usage_result_label') and self.usage_result_label:
+            self.usage_result_label.configure(text_color=self.colors['text_muted'])
+        self.usage_status_label.configure(text_color=self.colors['text_muted'])
         
         # 设置页面
         self.settings_title.configure(text_color=self.colors['text'])
