@@ -1,6 +1,6 @@
 # TokenManager
 ## 产品预览
-![GUI](.\GUI.png)
+![GUI](GUI.png)
 
 ## ✨ 更新预览
 
@@ -24,13 +24,13 @@
 
 ## 🚀 快速开始
 
-### 方式1: 直接使用EXE（推荐）
+### 方式1: 直接使用EXE
 
 [Releases](https://github.com/shengyexiuyo/TokenManager/releases)中下载最新exe文件，双击打开使用。
 
+只支持老版本，建议使用新版
 
-
-### 方式2: 使用.bat启动项目
+### 方式2: 使用.bat启动项目（推荐）
 
 双击使用“启动.bat”，启动项目GUI界面，需要电脑安装python环境。
 
