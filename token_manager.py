@@ -128,6 +128,8 @@ class DeepSeekProvider(APIProvider):
     @property
     def name(self): return "DeepSeek"
     @property
+    def key(self): return "deepseek"
+    @property
     def balance_endpoint(self): return "https://api.deepseek.com/user/balance"
     @property
     def usage_endpoint(self): return "https://api.deepseek.com/user/balance"
@@ -165,6 +167,8 @@ class DeepSeekProvider(APIProvider):
 class OpenAIProvider(APIProvider):
     @property
     def name(self): return "OpenAI"
+    @property
+    def key(self): return "openai"
     @property
     def balance_endpoint(self): return "https://api.openai.com/v1/dashboard/billing/subscription"
     @property
@@ -206,9 +210,317 @@ class OpenAIProvider(APIProvider):
         return api_key.startswith('sk-')
 
 
+class DoubaoLiteProvider(APIProvider):
+    """字节跳动豆包 API"""
+    @property
+    def name(self): return "Doubao-Lite"
+    @property
+    def key(self): return "doubao"
+    @property
+    def balance_endpoint(self): return "https://ark.cn-beijing.volces.com/api/usage/v1/balance"
+    @property
+    def usage_endpoint(self): return "https://ark.cn-beijing.volces.com/api/usage/v1/query"
+    @property
+    def auth_type(self): return "bearer"
+    @property
+    def dashboard_url(self): return "https://console.volcengine.com/ark"
+    def parse_balance(self, data: dict) -> list:
+        return [{
+            'currency': data.get('currency', 'CNY'),
+            'total': float(data.get('balance', 0)),
+            'granted': float(data.get('granted_balance', 0)),
+            'topped_up': float(data.get('topped_up_balance', 0)),
+            'available': float(data.get('balance', 0))
+        }]
+    def parse_usage(self, data: dict) -> dict:
+        return {
+            'currency': data.get('currency', 'CNY'),
+            'used_today': float(data.get('daily_used', 0)),
+            'used_month': float(data.get('monthly_used', 0)),
+            'total_used': float(data.get('total_used', 0))
+        }
+    def validate_api_key(self, api_key: str) -> bool:
+        return api_key.startswith('ak-') or len(api_key) > 20
+
+
+class WenxinYiyanProvider(APIProvider):
+    """百度文心一言 API"""
+    @property
+    def name(self): return "文心一言"
+    @property
+    def key(self): return "wenxin"
+    @property
+    def balance_endpoint(self): return "https://aip.baidubce.com/rpc/2.0/ai_custom/v1/wenxinworkshop/balance"
+    @property
+    def usage_endpoint(self): return "https://aip.baidubce.com/rpc/2.0/ai_custom/v1/wenxinworkshop/usage"
+    @property
+    def auth_type(self): return "bearer"
+    @property
+    def dashboard_url(self): return "https://console.bce.baidu.com/qianfan/ais/console/overview"
+    def parse_balance(self, data: dict) -> list:
+        return [{
+            'currency': data.get('currency', 'CNY'),
+            'total': float(data.get('total_quota', 0)),
+            'granted': float(data.get('granted_quota', 0)),
+            'topped_up': float(data.get('used_quota', 0)),
+            'available': float(data.get('total_quota', 0)) - float(data.get('used_quota', 0))
+        }]
+    def parse_usage(self, data: dict) -> dict:
+        return {
+            'currency': data.get('currency', 'CNY'),
+            'used_today': float(data.get('daily_used', 0)),
+            'used_month': float(data.get('monthly_used', 0)),
+            'total_used': float(data.get('total_used', 0))
+        }
+    def validate_api_key(self, api_key: str) -> bool:
+        return api_key.startswith('API-Key') or api_key.startswith('bce-') or len(api_key) > 30
+
+
+class QwenProvider(APIProvider):
+    """通义千问（阿里云百炼）API"""
+    @property
+    def name(self): return "通义千问"
+    @property
+    def key(self): return "qwen"
+    @property
+    def balance_endpoint(self): return "https://dashscope.aliyuncs.com/api/v1/usage"
+    @property
+    def usage_endpoint(self): return "https://dashscope.aliyuncs.com/api/v1/usage"
+    @property
+    def auth_type(self): return "bearer"
+    @property
+    def dashboard_url(self): return "https://bailian.console.aliyun.com"
+    def parse_balance(self, data: dict) -> list:
+        return [{
+            'currency': data.get('currency', 'CNY'),
+            'total': float(data.get('total_balance', 0)),
+            'granted': float(data.get('granted_balance', 0)),
+            'topped_up': float(data.get('topped_up_balance', 0)),
+            'available': float(data.get('available_balance', 0))
+        }]
+    def parse_usage(self, data: dict) -> dict:
+        return {
+            'currency': data.get('currency', 'CNY'),
+            'used_today': float(data.get('daily_cost', 0)),
+            'used_month': float(data.get('monthly_cost', 0)),
+            'total_used': float(data.get('total_cost', 0))
+        }
+    def validate_api_key(self, api_key: str) -> bool:
+        return api_key.startswith('sk-') and len(api_key) > 40
+
+
+class GLMProvider(APIProvider):
+    """智谱AI（GLM）API"""
+    @property
+    def name(self): return "GLM"
+    @property
+    def key(self): return "glm"
+    @property
+    def balance_endpoint(self): return "https://open.bigmodel.cn/api/paas/v4/usage"
+    @property
+    def usage_endpoint(self): return "https://open.bigmodel.cn/api/paas/v4/usage"
+    @property
+    def auth_type(self): return "bearer"
+    @property
+    def dashboard_url(self): return "https://open.bigmodel.cn/console"
+    def parse_balance(self, data: dict) -> list:
+        return [{
+            'currency': data.get('currency', 'CNY'),
+            'total': float(data.get('total_balance', 0)),
+            'granted': float(data.get('granted_balance', 0)),
+            'topped_up': float(data.get('topped_up_balance', 0)),
+            'available': float(data.get('available_balance', 0))
+        }]
+    def parse_usage(self, data: dict) -> dict:
+        return {
+            'currency': data.get('currency', 'CNY'),
+            'used_today': float(data.get('daily_used', 0)),
+            'used_month': float(data.get('monthly_used', 0)),
+            'total_used': float(data.get('total_used', 0))
+        }
+    def validate_api_key(self, api_key: str) -> bool:
+        return api_key.startswith('glm-') or len(api_key) > 30
+
+
+class HunyuanProvider(APIProvider):
+    """腾讯云混元 API"""
+    @property
+    def name(self): return "腾讯云混元"
+    @property
+    def key(self): return "hunyuan"
+    @property
+    def balance_endpoint(self): return "https://hunyuan.cloud.tencent.com/api/v1/balance"
+    @property
+    def usage_endpoint(self): return "https://hunyuan.cloud.tencent.com/api/v1/usage"
+    @property
+    def auth_type(self): return "bearer"
+    @property
+    def dashboard_url(self): return "https://console.cloud.tencent.com/hunyuan"
+    def parse_balance(self, data: dict) -> list:
+        return [{
+            'currency': data.get('currency', 'CNY'),
+            'total': float(data.get('total_balance', 0)),
+            'granted': float(data.get('granted_balance', 0)),
+            'topped_up': float(data.get('topped_up_balance', 0)),
+            'available': float(data.get('available_balance', 0))
+        }]
+    def parse_usage(self, data: dict) -> dict:
+        return {
+            'currency': data.get('currency', 'CNY'),
+            'used_today': float(data.get('daily_used', 0)),
+            'used_month': float(data.get('monthly_used', 0)),
+            'total_used': float(data.get('total_used', 0))
+        }
+    def validate_api_key(self, api_key: str) -> bool:
+        return api_key.startswith('sk-') and len(api_key) > 40
+
+
+class ZhipuProvider(APIProvider):
+    """智谱AI（与GLM相同，但作为独立入口）"""
+    @property
+    def name(self): return "智谱 AI"
+    @property
+    def key(self): return "zhipu"
+    @property
+    def balance_endpoint(self): return "https://open.bigmodel.cn/api/paas/v4/usage"
+    @property
+    def usage_endpoint(self): return "https://open.bigmodel.cn/api/paas/v4/usage"
+    @property
+    def auth_type(self): return "bearer"
+    @property
+    def dashboard_url(self): return "https://open.bigmodel.cn/console"
+    def parse_balance(self, data: dict) -> list:
+        return [{
+            'currency': data.get('currency', 'CNY'),
+            'total': float(data.get('total_balance', 0)),
+            'granted': float(data.get('granted_balance', 0)),
+            'topped_up': float(data.get('topped_up_balance', 0)),
+            'available': float(data.get('available_balance', 0))
+        }]
+    def parse_usage(self, data: dict) -> dict:
+        return {
+            'currency': data.get('currency', 'CNY'),
+            'used_today': float(data.get('daily_used', 0)),
+            'used_month': float(data.get('monthly_used', 0)),
+            'total_used': float(data.get('total_used', 0))
+        }
+    def validate_api_key(self, api_key: str) -> bool:
+        return api_key.startswith('glm-') or len(api_key) > 30
+
+
+class MimoProvider(APIProvider):
+    """小米MiMo AI API"""
+    @property
+    def name(self): return "Mimo"
+    @property
+    def key(self): return "mimo"
+    @property
+    def balance_endpoint(self): return "https://api.xiaomimimo.com/v1/balance"
+    @property
+    def usage_endpoint(self): return "https://api.xiaomimimo.com/v1/chat/completions"
+    @property
+    def auth_type(self): return "bearer"
+    @property
+    def dashboard_url(self): return "https://platform.xiaomimimo.com/console/balance"
+    def parse_balance(self, data: dict) -> list:
+        return [{
+            'currency': data.get('currency', 'CNY'),
+            'total': float(data.get('total_balance', 0)),
+            'granted': float(data.get('granted_balance', 0)),
+            'topped_up': float(data.get('topped_up_balance', 0)),
+            'available': float(data.get('available_balance', 0)),
+            'credits': float(data.get('credits', 0)),
+            'credits_used': float(data.get('credits_used', 0))
+        }]
+    def parse_usage(self, data: dict) -> dict:
+        return {
+            'currency': 'CNY',
+            'used_today': float(data.get('daily_usage', 0)),
+            'used_month': float(data.get('monthly_usage', 0)),
+            'total_used': float(data.get('total_usage', 0))
+        }
+    def validate_api_key(self, api_key: str) -> bool:
+        return api_key.startswith('sk-') or api_key.startswith('tp-') or len(api_key) > 30
+
+
+class KimiProvider(APIProvider):
+    """Kimi（月之暗面）API"""
+    @property
+    def name(self): return "Kimi"
+    @property
+    def key(self): return "kimi"
+    @property
+    def balance_endpoint(self): return "https://api.moonshot.cn/v1/balance"
+    @property
+    def usage_endpoint(self): return "https://api.moonshot.cn/v1/usage"
+    @property
+    def auth_type(self): return "bearer"
+    @property
+    def dashboard_url(self): return "https://platform.moonshot.cn"
+    def parse_balance(self, data: dict) -> list:
+        return [{
+            'currency': data.get('currency', 'CNY'),
+            'total': float(data.get('total_balance', 0)),
+            'granted': float(data.get('granted_balance', 0)),
+            'topped_up': float(data.get('topped_up_balance', 0)),
+            'available': float(data.get('available_balance', 0))
+        }]
+    def parse_usage(self, data: dict) -> dict:
+        return {
+            'currency': data.get('currency', 'CNY'),
+            'used_today': float(data.get('daily_used', 0)),
+            'used_month': float(data.get('monthly_used', 0)),
+            'total_used': float(data.get('total_used', 0))
+        }
+    def validate_api_key(self, api_key: str) -> bool:
+        return api_key.startswith('sk-') and '-moonshot-' in api_key
+
+
+class ClaudeProvider(APIProvider):
+    """Anthropic Claude API"""
+    @property
+    def name(self): return "Claude"
+    @property
+    def key(self): return "claude"
+    @property
+    def balance_endpoint(self): return "https://api.anthropic.com/v1/organizations/current/credit_summary"
+    @property
+    def usage_endpoint(self): return "https://api.anthropic.com/v1/users/credit_summary"
+    @property
+    def auth_type(self): return "bearer"
+    @property
+    def dashboard_url(self): return "https://console.anthropic.com/"
+    def parse_balance(self, data: dict) -> list:
+        return [{
+            'currency': 'USD',
+            'total': float(data.get('credit_balance', 0)),
+            'granted': float(data.get('free_credits_remaining', 0)),
+            'topped_up': float(data.get('purchased_credits', 0)),
+            'available': float(data.get('credit_balance', 0))
+        }]
+    def parse_usage(self, data: dict) -> dict:
+        return {
+            'currency': 'USD',
+            'used_today': float(data.get('daily_usage', 0)),
+            'used_month': float(data.get('monthly_usage', 0)),
+            'total_used': float(data.get('total_usage', 0))
+        }
+    def validate_api_key(self, api_key: str) -> bool:
+        return api_key.startswith('sk-ant-')
+
+
 API_PROVIDERS = {
     'deepseek': DeepSeekProvider(),
     'openai': OpenAIProvider(),
+    'doubao': DoubaoLiteProvider(),
+    'wenxin': WenxinYiyanProvider(),
+    'qwen': QwenProvider(),
+    'glm': GLMProvider(),
+    'hunyuan': HunyuanProvider(),
+    'zhipu': ZhipuProvider(),
+    'mimo': MimoProvider(),
+    'kimi': KimiProvider(),
+    'claude': ClaudeProvider(),
 }
 
 
@@ -709,7 +1021,7 @@ class TokenManagerApp(ctk.CTk):
         if not self.current_provider:
             return
         
-        provider_key = self.current_provider.name.lower()
+        provider_key = self.current_provider.key
         config_file = get_config_path(f'.{provider_key}_keys')
         
         try:
@@ -748,7 +1060,7 @@ class TokenManagerApp(ctk.CTk):
             )
             return
         
-        provider_key = self.current_provider.name.lower()
+        provider_key = self.current_provider.key
         
         if provider_key not in self.api_key_history:
             self.api_key_history[provider_key] = []
@@ -781,7 +1093,7 @@ class TokenManagerApp(ctk.CTk):
             self.status_label.configure(text="请先选择要删除的密钥", text_color=self.colors['danger'])
             return
         
-        provider_key = self.current_provider.name.lower()
+        provider_key = self.current_provider.key
         
         if provider_key not in self.api_key_history or not self.api_key_history[provider_key]:
             self.status_label.configure(text="没有可删除的密钥", text_color=self.colors['danger'])
