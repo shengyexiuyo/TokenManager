@@ -1,6 +1,8 @@
 # Build and distribution directories
 build/
 dist/
+build.bat
+stop.bat
 
 # Python compiled files
 __pycache__/

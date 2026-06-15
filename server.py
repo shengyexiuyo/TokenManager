@@ -9,8 +9,18 @@ Token Manager Web Server - Flask后端服务
 import sys
 import os
 
-# 添加当前目录到路径
-sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+# 获取应用根目录（支持打包后的exe）
+def get_app_root():
+    """获取应用根目录"""
+    if getattr(sys, 'frozen', False):
+        # 打包后的exe
+        return os.path.dirname(sys.executable)
+    else:
+        # 开发环境
+        return os.path.dirname(os.path.abspath(__file__))
+
+# 添加根目录到路径
+sys.path.insert(0, get_app_root())
 
 from flask import Flask, request, jsonify, send_from_directory
 from flask_cors import CORS
@@ -24,14 +34,16 @@ from token_core import (
     list_providers
 )
 
-app = Flask(__name__, static_folder='gui', static_url_path='')
+# 静态文件目录
+STATIC_FOLDER = os.path.join(get_app_root(), 'gui')
+
+app = Flask(__name__, static_folder=STATIC_FOLDER, static_url_path='')
 CORS(app)
 
 # 配置文件路径
 def get_config_path(filename: str) -> str:
-    """获取配置文件路径"""
-    script_dir = os.path.dirname(os.path.abspath(__file__))
-    return os.path.join(script_dir, filename)
+    """获取配置文件路径（保存在exe同目录）"""
+    return os.path.join(get_app_root(), filename)
 
 
 @app.route('/')
