@@ -30,8 +30,8 @@ CORS(app)
 # 配置文件路径
 def get_config_path(filename: str) -> str:
     """获取配置文件路径"""
-    exe_dir = os.path.dirname(os.path.abspath(__file__))
-    return os.path.join(exe_dir, filename)
+    script_dir = os.path.dirname(os.path.abspath(__file__))
+    return os.path.join(script_dir, filename)
 
 
 @app.route('/')
