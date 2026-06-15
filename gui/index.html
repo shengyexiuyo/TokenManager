@@ -15,10 +15,6 @@
                         primary: '#a855f7',
                         secondary: '#6366f1',
                         accent: '#f472b6',
-                        neutral: '#1f2937',
-                        'base-100': '#0f0f1a',
-                        'base-200': '#1a1a2e',
-                        'base-300': '#252542',
                     }
                 }
             }
@@ -27,81 +23,212 @@
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
         body { font-family: 'Inter', sans-serif; }
-        .glass-effect {
-            background: rgba(26, 26, 46, 0.8);
-            backdrop-filter: blur(20px);
-            border: 1px solid rgba(255, 255, 255, 0.1);
+
+        /* Dark Theme (Default) */
+        [data-theme="dark"] {
+            --bg-primary: #0f0f1a;
+            --bg-secondary: #1a1a2e;
+            --bg-tertiary: #252542;
+            --bg-card: #1a1a2e;
+            --glass-bg: rgba(26, 26, 46, 0.8);
+            --glass-border: rgba(255, 255, 255, 0.1);
+            --text-primary: #ffffff;
+            --text-secondary: #e5e7eb;
+            --text-muted: #9ca3af;
+            --gradient-start: #a855f7;
+            --gradient-end: #6366f1;
+            --hover-shadow: rgba(168, 85, 247, 0.15);
+            --card-border: #374151;
         }
+
+        /* Light Theme */
+        [data-theme="light"] {
+            --bg-primary: #f8fafc;
+            --bg-secondary: #f1f5f9;
+            --bg-tertiary: #e2e8f0;
+            --bg-card: #ffffff;
+            --glass-bg: rgba(255, 255, 255, 0.9);
+            --glass-border: rgba(0, 0, 0, 0.1);
+            --text-primary: #0f172a;
+            --text-secondary: #334155;
+            --text-muted: #64748b;
+            --gradient-start: #a855f7;
+            --gradient-end: #6366f1;
+            --hover-shadow: rgba(168, 85, 247, 0.2);
+            --card-border: #e2e8f0;
+        }
+
+        body {
+            background-color: var(--bg-primary);
+            color: var(--text-primary);
+            transition: background-color 0.3s ease, color 0.3s ease;
+        }
+
+        .glass-effect {
+            background: var(--glass-bg);
+            backdrop-filter: blur(20px);
+            border: 1px solid var(--glass-border);
+        }
+
         .card-hover:hover {
             transform: translateY(-2px);
-            box-shadow: 0 8px 30px rgba(168, 85, 247, 0.15);
+            box-shadow: 0 8px 30px var(--hover-shadow);
         }
+
         .gradient-border {
-            background: linear-gradient(135deg, #a855f7, #6366f1);
+            background: linear-gradient(135deg, var(--gradient-start), var(--gradient-end));
             padding: 2px;
             border-radius: 1rem;
         }
+
         .inner-card {
-            background: #1a1a2e;
+            background: var(--bg-card);
             border-radius: calc(1rem - 2px);
+            border: 1px solid var(--card-border);
+            transition: background-color 0.3s ease, border-color 0.3s ease;
         }
-        .loading-spinner {
-            border: 3px solid rgba(168, 85, 247, 0.2);
-            border-top-color: #a855f7;
-            border-radius: 50%;
-            width: 40px;
-            height: 40px;
-            animation: spin 1s linear infinite;
+
+        .stat-card {
+            background: var(--bg-tertiary);
+            border: 1px solid var(--card-border);
+            transition: background-color 0.3s ease, border-color 0.3s ease;
         }
-        @keyframes spin {
-            to { transform: rotate(360deg); }
+
+        .input-bordered {
+            background-color: var(--bg-tertiary) !important;
+            border-color: var(--card-border) !important;
+            color: var(--text-primary) !important;
+            transition: background-color 0.3s ease, border-color 0.3s ease;
         }
-        @keyframes pulse-glow {
-            0%, 100% { box-shadow: 0 0 20px rgba(168, 85, 247, 0.3); }
-            50% { box-shadow: 0 0 40px rgba(168, 85, 247, 0.6); }
+
+        .input-bordered:focus {
+            border-color: var(--gradient-start) !important;
         }
-        .pulse-glow { animation: pulse-glow 2s ease-in-out infinite; }
+
+        .input::placeholder {
+            color: var(--text-muted) !important;
+        }
+
         .provider-grid {
             display: grid;
             grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
             gap: 0.75rem;
         }
+
         .provider-btn {
             transition: all 0.3s ease;
+            border-color: var(--card-border) !important;
+            background-color: var(--bg-secondary) !important;
+            color: var(--text-secondary) !important;
         }
+
         .provider-btn:hover {
             transform: scale(1.05);
+            border-color: var(--gradient-start) !important;
         }
+
         .provider-btn.active {
-            background: linear-gradient(135deg, #a855f7, #6366f1);
-            border-color: transparent;
-            color: white;
+            background: linear-gradient(135deg, var(--gradient-start), var(--gradient-end)) !important;
+            border-color: transparent !important;
+            color: white !important;
         }
+
+        .saved-key-item {
+            background-color: var(--bg-tertiary);
+            border: 1px solid var(--card-border);
+            transition: background-color 0.3s ease, border-color 0.3s ease;
+        }
+
+        .saved-key-item:hover {
+            background-color: var(--bg-secondary);
+        }
+
+        .loading-spinner {
+            border: 3px solid rgba(168, 85, 247, 0.2);
+            border-top-color: var(--gradient-start);
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        @keyframes pulse-glow {
+            0%, 100% { box-shadow: 0 0 20px rgba(168, 85, 247, 0.3); }
+            50% { box-shadow: 0 0 40px rgba(168, 85, 247, 0.6); }
+        }
+
+        .pulse-glow { animation: pulse-glow 2s ease-in-out infinite; }
+
+        /* Override daisyUI theme styles for light mode */
+        [data-theme="light"] .btn-ghost {
+            color: var(--text-secondary) !important;
+        }
+
+        [data-theme="light"] .btn-ghost:hover {
+            background-color: var(--bg-tertiary) !important;
+            color: var(--text-primary) !important;
+        }
+
+        [data-theme="light"] .badge {
+            border-color: var(--card-border);
+        }
+
+        [data-theme="light"] .modal-box {
+            background-color: var(--bg-card) !important;
+            border: 1px solid var(--card-border);
+        }
+
+        [data-theme="light"] .modal-backdrop {
+            background-color: rgba(0, 0, 0, 0.4);
+        }
+
+        [data-theme="light"] .scrollbar-thin::-webkit-scrollbar-thumb {
+            background: #94a3b8;
+        }
+
+        [data-theme="light"] .text-gray-400,
+        [data-theme="light"] .text-gray-500 {
+            color: var(--text-muted) !important;
+        }
+
+        [data-theme="light"] .text-white {
+            color: var(--text-primary) !important;
+        }
+
+        /* Stat value gradient text */
         .stat-value {
             font-size: 2rem;
             font-weight: 700;
-            background: linear-gradient(135deg, #a855f7, #6366f1);
+            background: linear-gradient(135deg, var(--gradient-start), var(--gradient-end));
             -webkit-background-clip: text;
             -webkit-text-fill-color: transparent;
             background-clip: text;
         }
+
         .scrollbar-thin::-webkit-scrollbar { width: 6px; }
         .scrollbar-thin::-webkit-scrollbar-track { background: transparent; }
         .scrollbar-thin::-webkit-scrollbar-thumb { background: #4b5563; border-radius: 3px; }
+
         .toast {
             animation: slideIn 0.3s ease, fadeOut 0.3s ease 2.7s;
         }
+
         @keyframes slideIn {
             from { transform: translateX(100%); opacity: 0; }
             to { transform: translateX(0); opacity: 1; }
         }
+
         @keyframes fadeOut {
             from { opacity: 1; }
             to { opacity: 0; }
         }
     </style>
 </head>
-<body class="min-h-screen bg-base-100 text-gray-100">
+<body class="min-h-screen">
     <!-- Toast Container -->
     <div id="toast-container" class="fixed top-4 right-4 z-50 flex flex-col gap-2"></div>
 
@@ -117,7 +244,7 @@
                     </div>
                     <div>
                         <h1 class="text-xl font-bold bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent">Token Manager</h1>
-                        <p class="text-sm text-gray-400">AI API 余额查询工具</p>
+                        <p class="text-sm opacity-60">AI API 余额查询工具</p>
                     </div>
                 </div>
                 <div class="flex items-center gap-4">
@@ -174,9 +301,9 @@
                         <div class="space-y-4">
                             <div class="relative">
                                 <input type="password" id="api-key" placeholder="输入或粘贴您的 API Key" 
-                                    class="input input-bordered w-full bg-base-300 border-gray-600 focus:border-primary focus:outline-none pr-20"/>
+                                    class="input input-bordered w-full border-gray-600 focus:border-primary focus:outline-none pr-20"/>
                                 <div class="absolute right-3 top-1/2 -translate-y-1/2 flex gap-1">
-                                    <button onclick="copyApiKey()" class="text-gray-400 hover:text-success transition-colors" title="复制">
+                                    <button onclick="copyApiKey()" class="opacity-60 hover:text-success transition-colors" title="复制">
                                         <svg id="copy-icon" class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/>
                                         </svg>
@@ -184,7 +311,7 @@
                                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
                                         </svg>
                                     </button>
-                                    <button onclick="toggleKeyVisibility()" class="text-gray-400 hover:text-primary transition-colors" title="显示/隐藏">
+                                    <button onclick="toggleKeyVisibility()" class="opacity-60 hover:text-primary transition-colors" title="显示/隐藏">
                                         <svg id="eye-icon-show" class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
                                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/>
@@ -230,7 +357,7 @@
                             </button>
                         </div>
                         <div id="saved-keys" class="space-y-2 max-h-48 overflow-y-auto scrollbar-thin">
-                            <p class="text-gray-500 text-sm">暂无保存的密钥</p>
+                            <p class="opacity-60 text-sm">暂无保存的密钥</p>
                         </div>
                     </div>
                 </div>
@@ -251,7 +378,7 @@
                             <span id="balance-provider" class="badge badge-primary hidden">-</span>
                         </div>
                         <div id="balance-content">
-                            <div class="text-center py-12 text-gray-500">
+                            <div class="text-center py-12 opacity-60">
                                 <svg class="w-16 h-16 mx-auto mb-4 opacity-50" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/>
                                 </svg>
@@ -297,7 +424,7 @@
                             </button>
                         </div>
                         <div id="usage-content">
-                            <div class="text-center py-12 text-gray-500">
+                            <div class="text-center py-12 opacity-60">
                                 <svg class="w-16 h-16 mx-auto mb-4 opacity-50" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/>
                                 </svg>
@@ -312,7 +439,7 @@
 
     <!-- Loading Modal -->
     <dialog id="loading-modal" class="modal">
-        <div class="modal-box bg-base-200 border border-gray-700 text-center">
+        <div class="modal-box text-center">
             <div class="loading-spinner mx-auto mb-4"></div>
             <p id="loading-text" class="text-lg">正在查询...</p>
         </div>
@@ -426,11 +553,11 @@
                 }
                 
                 container.innerHTML = keys.map(k => `
-                    <div class="flex items-center justify-between p-2 rounded-lg bg-base-300 hover:bg-opacity-70">
+                    <div class="saved-key-item flex items-center justify-between p-2 rounded-lg hover:bg-opacity-70">
                         <div class="flex items-center gap-2 flex-1 min-w-0">
                             <span class="w-2 h-2 rounded-full bg-primary flex-shrink-0"></span>
                             <span class="text-sm truncate">${k.provider_name}</span>
-                            <span class="text-xs text-gray-500 flex-shrink-0">${k.key.slice(0, 8)}...</span>
+                            <span class="text-xs opacity-60 flex-shrink-0">${k.key.slice(0, 8)}...</span>
                         </div>
                         <div class="flex gap-1 flex-shrink-0">
                             <button onclick="useKey('${k.provider_key}')" class="btn btn-xs btn-ghost">使用</button>
@@ -626,22 +753,22 @@
                 <div class="mb-6 p-4 rounded-xl bg-gradient-to-r from-primary/20 to-secondary/20 border border-primary/30">
                     <div class="grid grid-cols-3 gap-4 text-center">
                         <div>
-                            <p class="text-gray-400 text-sm">总可用余额</p>
+                            <p class="opacity-60 text-sm">总可用余额</p>
                             <p class="stat-value text-xl">${formatNumber(totalAvailable)}</p>
                         </div>
                         <div>
-                            <p class="text-gray-400 text-sm">服务商数量</p>
-                            <p class="text-2xl font-bold text-white">${validResults.length}</p>
+                            <p class="opacity-60 text-sm">服务商数量</p>
+                            <p class="text-2xl font-bold">${validResults.length}</p>
                         </div>
                         <div>
-                            <p class="text-gray-400 text-sm">充值余额</p>
+                            <p class="opacity-60 text-sm">充值余额</p>
                             <p class="text-xl font-semibold text-secondary">${formatNumber(totalToppedUp)}</p>
                         </div>
                     </div>
                 </div>
                 <div class="space-y-2 max-h-80 overflow-y-auto scrollbar-thin">
                     ${results.map(r => `
-                        <div class="flex items-center justify-between p-3 rounded-lg bg-base-300 ${r.error ? 'opacity-50' : ''}">
+                        <div class="saved-key-item flex items-center justify-between p-3 rounded-lg ${r.error ? 'opacity-50' : ''}">
                             <div class="flex items-center gap-3">
                                 <span class="w-3 h-3 rounded-full ${r.error ? 'bg-error' : 'bg-primary'}"></span>
                                 <span class="font-medium">${r.provider_name}</span>
@@ -650,7 +777,7 @@
                                 ${r.error ? 
                                     `<span class="text-error text-sm">${r.error}</span>` :
                                     `<span class="text-success font-semibold">${formatNumber(r.data.available)}</span>
-                                     <span class="text-gray-500 text-sm ml-1">${r.currency}</span>`
+                                     <span class="opacity-60 text-sm ml-1">${r.currency}</span>`
                                 }
                             </div>
                         </div>
@@ -781,32 +908,32 @@
                 const item = balanceData[0];
                 container.innerHTML = `
                     <div class="grid md:grid-cols-2 gap-6">
-                        <div class="stat-card p-6 rounded-xl bg-base-300 card-hover transition-all">
-                            <p class="text-gray-400 text-sm mb-2">可用余额</p>
+                        <div class="stat-card p-6 rounded-xl card-hover transition-all">
+                            <p class="opacity-60 text-sm mb-2">可用余额</p>
                             <p class="stat-value">${formatNumber(item.available)}</p>
-                            <p class="text-sm text-gray-500">${currency}</p>
+                            <p class="text-sm opacity-60">${currency}</p>
                         </div>
-                        <div class="stat-card p-6 rounded-xl bg-base-300 card-hover transition-all">
-                            <p class="text-gray-400 text-sm mb-2">总余额</p>
-                            <p class="text-2xl font-bold text-white">${formatNumber(item.total)}</p>
-                            <p class="text-sm text-gray-500">${currency}</p>
+                        <div class="stat-card p-6 rounded-xl card-hover transition-all">
+                            <p class="opacity-60 text-sm mb-2">总余额</p>
+                            <p class="text-2xl font-bold">${formatNumber(item.total)}</p>
+                            <p class="text-sm opacity-60">${currency}</p>
                         </div>
-                        <div class="stat-card p-6 rounded-xl bg-base-300 card-hover transition-all">
-                            <p class="text-gray-400 text-sm mb-2">赠送额度</p>
+                        <div class="stat-card p-6 rounded-xl card-hover transition-all">
+                            <p class="opacity-60 text-sm mb-2">赠送额度</p>
                             <p class="text-xl font-semibold text-success">${formatNumber(item.granted)}</p>
-                            <p class="text-sm text-gray-500">${currency}</p>
+                            <p class="text-sm opacity-60">${currency}</p>
                         </div>
-                        <div class="stat-card p-6 rounded-xl bg-base-300 card-hover transition-all">
-                            <p class="text-gray-400 text-sm mb-2">充值余额</p>
+                        <div class="stat-card p-6 rounded-xl card-hover transition-all">
+                            <p class="opacity-60 text-sm mb-2">充值余额</p>
                             <p class="text-xl font-semibold text-secondary">${formatNumber(item.topped_up)}</p>
-                            <p class="text-sm text-gray-500">${currency}</p>
+                            <p class="text-sm opacity-60">${currency}</p>
                         </div>
                     </div>
                 `;
             } else {
                 container.innerHTML = `
                     <div class="text-center py-8">
-                        <p class="text-gray-400">余额信息不可用</p>
+                        <p class="opacity-60">余额信息不可用</p>
                     </div>
                 `;
             }
@@ -823,7 +950,7 @@
                         </svg>
                     </div>
                     <p class="text-error font-medium">${error}</p>
-                    <p class="text-gray-500 text-sm mt-2">请检查 API Key 是否正确</p>
+                    <p class="opacity-60 text-sm mt-2">请检查 API Key 是否正确</p>
                 </div>
             `;
         }
@@ -835,27 +962,27 @@
             if (usageData) {
                 container.innerHTML = `
                     <div class="grid md:grid-cols-3 gap-4">
-                        <div class="p-4 rounded-xl bg-base-300 text-center card-hover transition-all">
-                            <p class="text-gray-400 text-sm mb-2">今日用量</p>
+                        <div class="stat-card p-4 rounded-xl text-center card-hover transition-all">
+                            <p class="opacity-60 text-sm mb-2">今日用量</p>
                             <p class="text-xl font-bold text-warning">${formatNumber(usageData.used_today)}</p>
-                            <p class="text-xs text-gray-500">${currency}</p>
+                            <p class="text-xs opacity-60">${currency}</p>
                         </div>
-                        <div class="p-4 rounded-xl bg-base-300 text-center card-hover transition-all">
-                            <p class="text-gray-400 text-sm mb-2">本月用量</p>
+                        <div class="stat-card p-4 rounded-xl text-center card-hover transition-all">
+                            <p class="opacity-60 text-sm mb-2">本月用量</p>
                             <p class="text-xl font-bold text-error">${formatNumber(usageData.used_month)}</p>
-                            <p class="text-xs text-gray-500">${currency}</p>
+                            <p class="text-xs opacity-60">${currency}</p>
                         </div>
-                        <div class="p-4 rounded-xl bg-base-300 text-center card-hover transition-all">
-                            <p class="text-gray-400 text-sm mb-2">累计使用</p>
-                            <p class="text-xl font-bold text-white">${formatNumber(usageData.total_used)}</p>
-                            <p class="text-xs text-gray-500">${currency}</p>
+                        <div class="stat-card p-4 rounded-xl text-center card-hover transition-all">
+                            <p class="opacity-60 text-sm mb-2">累计使用</p>
+                            <p class="text-xl font-bold">${formatNumber(usageData.total_used)}</p>
+                            <p class="text-xs opacity-60">${currency}</p>
                         </div>
                     </div>
                 `;
             } else {
                 container.innerHTML = `
                     <div class="text-center py-8">
-                        <p class="text-gray-400">该服务商暂无用量数据</p>
+                        <p class="opacity-60">该服务商暂无用量数据</p>
                     </div>
                 `;
             }
@@ -866,7 +993,7 @@
             const container = document.getElementById('usage-content');
             container.innerHTML = `
                 <div class="text-center py-8">
-                    <p class="text-gray-500">${error || '无法获取用量数据'}</p>
+                    <p class="opacity-60">${error || '无法获取用量数据'}</p>
                 </div>
             `;
         }
