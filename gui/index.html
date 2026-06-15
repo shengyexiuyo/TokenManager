@@ -1,0 +1,910 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Token Manager - AI API余额查询</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdn.jsdelivr.net/npm/daisyui@4.12.14/dist/full.min.css" rel="stylesheet" type="text/css" />
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        primary: '#a855f7',
+                        secondary: '#6366f1',
+                        accent: '#f472b6',
+                        neutral: '#1f2937',
+                        'base-100': '#0f0f1a',
+                        'base-200': '#1a1a2e',
+                        'base-300': '#252542',
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+        body { font-family: 'Inter', sans-serif; }
+        .glass-effect {
+            background: rgba(26, 26, 46, 0.8);
+            backdrop-filter: blur(20px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        .card-hover:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 30px rgba(168, 85, 247, 0.15);
+        }
+        .gradient-border {
+            background: linear-gradient(135deg, #a855f7, #6366f1);
+            padding: 2px;
+            border-radius: 1rem;
+        }
+        .inner-card {
+            background: #1a1a2e;
+            border-radius: calc(1rem - 2px);
+        }
+        .loading-spinner {
+            border: 3px solid rgba(168, 85, 247, 0.2);
+            border-top-color: #a855f7;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+        @keyframes pulse-glow {
+            0%, 100% { box-shadow: 0 0 20px rgba(168, 85, 247, 0.3); }
+            50% { box-shadow: 0 0 40px rgba(168, 85, 247, 0.6); }
+        }
+        .pulse-glow { animation: pulse-glow 2s ease-in-out infinite; }
+        .provider-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+            gap: 0.75rem;
+        }
+        .provider-btn {
+            transition: all 0.3s ease;
+        }
+        .provider-btn:hover {
+            transform: scale(1.05);
+        }
+        .provider-btn.active {
+            background: linear-gradient(135deg, #a855f7, #6366f1);
+            border-color: transparent;
+            color: white;
+        }
+        .stat-value {
+            font-size: 2rem;
+            font-weight: 700;
+            background: linear-gradient(135deg, #a855f7, #6366f1);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+        .scrollbar-thin::-webkit-scrollbar { width: 6px; }
+        .scrollbar-thin::-webkit-scrollbar-track { background: transparent; }
+        .scrollbar-thin::-webkit-scrollbar-thumb { background: #4b5563; border-radius: 3px; }
+        .toast {
+            animation: slideIn 0.3s ease, fadeOut 0.3s ease 2.7s;
+        }
+        @keyframes slideIn {
+            from { transform: translateX(100%); opacity: 0; }
+            to { transform: translateX(0); opacity: 1; }
+        }
+        @keyframes fadeOut {
+            from { opacity: 1; }
+            to { opacity: 0; }
+        }
+    </style>
+</head>
+<body class="min-h-screen bg-base-100 text-gray-100">
+    <!-- Toast Container -->
+    <div id="toast-container" class="fixed top-4 right-4 z-50 flex flex-col gap-2"></div>
+
+    <!-- Header -->
+    <header class="glass-effect sticky top-0 z-40">
+        <div class="container mx-auto px-6 py-4">
+            <div class="flex items-center justify-between">
+                <div class="flex items-center gap-4">
+                    <div class="w-12 h-12 rounded-xl bg-gradient-to-br from-primary to-secondary flex items-center justify-center">
+                        <svg class="w-7 h-7 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                        </svg>
+                    </div>
+                    <div>
+                        <h1 class="text-xl font-bold bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent">Token Manager</h1>
+                        <p class="text-sm text-gray-400">AI API 余额查询工具</p>
+                    </div>
+                </div>
+                <div class="flex items-center gap-4">
+                    <button onclick="toggleTheme()" class="btn btn-ghost btn-circle">
+                        <svg id="theme-icon-dark" class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"/>
+                        </svg>
+                        <svg id="theme-icon-light" class="w-5 h-5 hidden" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z"/>
+                        </svg>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Content -->
+    <main class="container mx-auto px-6 py-8">
+        <div class="grid lg:grid-cols-3 gap-8">
+            <!-- Left Panel: Provider Selection & API Key -->
+            <div class="lg:col-span-1 space-y-6">
+                <!-- Provider Selection Card -->
+                <div class="gradient-border">
+                    <div class="inner-card p-6">
+                        <div class="flex items-center justify-between mb-4">
+                            <h2 class="text-lg font-semibold flex items-center gap-2">
+                                <svg class="w-5 h-5 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"/>
+                                </svg>
+                                选择服务商
+                            </h2>
+                            <button id="dashboard-btn" onclick="openDashboard()" disabled class="btn btn-sm btn-ghost gap-1 disabled:opacity-50 disabled:cursor-not-allowed">
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"/>
+                                </svg>
+                                控制台
+                            </button>
+                        </div>
+                        <div id="provider-grid" class="provider-grid max-h-64 overflow-y-auto scrollbar-thin">
+                            <!-- Providers will be loaded here -->
+                        </div>
+                    </div>
+                </div>
+
+                <!-- API Key Card -->
+                <div class="gradient-border">
+                    <div class="inner-card p-6">
+                        <h2 class="text-lg font-semibold mb-4 flex items-center gap-2">
+                            <svg class="w-5 h-5 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z"/>
+                            </svg>
+                            API 密钥
+                        </h2>
+                        <div class="space-y-4">
+                            <div class="relative">
+                                <input type="password" id="api-key" placeholder="输入或粘贴您的 API Key" 
+                                    class="input input-bordered w-full bg-base-300 border-gray-600 focus:border-primary focus:outline-none pr-20"/>
+                                <div class="absolute right-3 top-1/2 -translate-y-1/2 flex gap-1">
+                                    <button onclick="copyApiKey()" class="text-gray-400 hover:text-success transition-colors" title="复制">
+                                        <svg id="copy-icon" class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/>
+                                        </svg>
+                                        <svg id="copy-success-icon" class="w-5 h-5 hidden text-success" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
+                                        </svg>
+                                    </button>
+                                    <button onclick="toggleKeyVisibility()" class="text-gray-400 hover:text-primary transition-colors" title="显示/隐藏">
+                                        <svg id="eye-icon-show" class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/>
+                                        </svg>
+                                        <svg id="eye-icon-hide" class="w-5 h-5 hidden" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21"/>
+                                        </svg>
+                                    </button>
+                                </div>
+                            </div>
+                            <div class="flex gap-2">
+                                <button onclick="queryBalance()" class="btn btn-primary flex-1 gap-2">
+                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
+                                    </svg>
+                                    查询余额
+                                </button>
+                                <button onclick="saveApiKey()" class="btn btn-ghost btn-square">
+                                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4"/>
+                                    </svg>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Saved Keys Card -->
+                <div class="gradient-border">
+                    <div class="inner-card p-6">
+                        <div class="flex items-center justify-between mb-4">
+                            <h2 class="text-lg font-semibold flex items-center gap-2">
+                                <svg class="w-5 h-5 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4"/>
+                                </svg>
+                                已保存的密钥
+                            </h2>
+                            <button onclick="queryAllBalances()" class="btn btn-sm btn-secondary gap-1">
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/>
+                                </svg>
+                                查询全部
+                            </button>
+                        </div>
+                        <div id="saved-keys" class="space-y-2 max-h-48 overflow-y-auto scrollbar-thin">
+                            <p class="text-gray-500 text-sm">暂无保存的密钥</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Right Panel: Results -->
+            <div class="lg:col-span-2 space-y-6">
+                <!-- Balance Result Card -->
+                <div class="gradient-border">
+                    <div class="inner-card p-6">
+                        <div class="flex items-center justify-between mb-6">
+                            <h2 class="text-lg font-semibold flex items-center gap-2">
+                                <svg class="w-5 h-5 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                                </svg>
+                                余额信息
+                            </h2>
+                            <span id="balance-provider" class="badge badge-primary hidden">-</span>
+                        </div>
+                        <div id="balance-content">
+                            <div class="text-center py-12 text-gray-500">
+                                <svg class="w-16 h-16 mx-auto mb-4 opacity-50" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/>
+                                </svg>
+                                <p>选择一个服务商并输入 API Key 开始查询，或在左侧"已保存的密钥"中点击"查询全部"</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- All Balances Summary Card -->
+                <div id="all-balances-card" class="gradient-border hidden">
+                    <div class="inner-card p-6">
+                        <div class="flex items-center justify-between mb-6">
+                            <h2 class="text-lg font-semibold flex items-center gap-2">
+                                <svg class="w-5 h-5 text-secondary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 14h.01M12 14h.01M15 11h.01M12 11h.01M9 11h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z"/>
+                                </svg>
+                                全部余额汇总
+                            </h2>
+                            <span id="total-balance-currency" class="badge badge-secondary">CNY</span>
+                        </div>
+                        <div id="all-balances-content">
+                            <!-- Loaded dynamically -->
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Usage Result Card -->
+                <div class="gradient-border">
+                    <div class="inner-card p-6">
+                        <div class="flex items-center justify-between mb-6">
+                            <h2 class="text-lg font-semibold flex items-center gap-2">
+                                <svg class="w-5 h-5 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/>
+                                </svg>
+                                用量统计
+                            </h2>
+                            <button onclick="queryUsage()" class="btn btn-sm btn-ghost gap-1">
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
+                                </svg>
+                                刷新
+                            </button>
+                        </div>
+                        <div id="usage-content">
+                            <div class="text-center py-12 text-gray-500">
+                                <svg class="w-16 h-16 mx-auto mb-4 opacity-50" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/>
+                                </svg>
+                                <p>查询余额后自动显示用量统计</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- Loading Modal -->
+    <dialog id="loading-modal" class="modal">
+        <div class="modal-box bg-base-200 border border-gray-700 text-center">
+            <div class="loading-spinner mx-auto mb-4"></div>
+            <p id="loading-text" class="text-lg">正在查询...</p>
+        </div>
+        <form method="dialog" class="modal-backdrop"><button>close</button></form>
+    </dialog>
+
+    <!-- API Server Config -->
+    <script>
+        const API_BASE = 'http://localhost:5000/api';
+        let currentProvider = null;
+        let providers = [];
+
+        // Theme Toggle
+        function toggleTheme() {
+            const html = document.documentElement;
+            const isDark = html.getAttribute('data-theme') === 'dark';
+            html.setAttribute('data-theme', isDark ? 'light' : 'dark');
+            
+            document.getElementById('theme-icon-dark').classList.toggle('hidden', !isDark);
+            document.getElementById('theme-icon-light').classList.toggle('hidden', isDark);
+            
+            localStorage.setItem('theme', isDark ? 'light' : 'dark');
+        }
+
+        // Load saved theme
+        document.addEventListener('DOMContentLoaded', () => {
+            const savedTheme = localStorage.getItem('theme') || 'dark';
+            document.documentElement.setAttribute('data-theme', savedTheme);
+            document.getElementById('theme-icon-dark').classList.toggle('hidden', savedTheme !== 'dark');
+            document.getElementById('theme-icon-light').classList.toggle('hidden', savedTheme === 'dark');
+            
+            loadProviders();
+            loadSavedKeys();
+        });
+
+        // Load Providers
+        async function loadProviders() {
+            try {
+                const response = await fetch(`${API_BASE}/providers`);
+                providers = await response.json();
+                
+                const grid = document.getElementById('provider-grid');
+                grid.innerHTML = providers.map(p => `
+                    <button onclick="selectProvider('${p.key}')" 
+                        class="provider-btn btn btn-sm btn-ghost border border-gray-600 justify-start font-normal"
+                        data-provider="${p.key}">
+                        <span class="w-2 h-2 rounded-full bg-primary mr-2"></span>
+                        ${p.name}
+                    </button>
+                `).join('');
+            } catch (error) {
+                showToast('无法加载服务商列表，请确保后端服务正在运行', 'error');
+                console.error('Load providers error:', error);
+            }
+        }
+
+        // Select Provider
+        function selectProvider(key) {
+            currentProvider = providers.find(p => p.key === key);
+            if (!currentProvider) return;
+
+            // Update UI
+            document.querySelectorAll('.provider-btn').forEach(btn => {
+                btn.classList.remove('active');
+                if (btn.dataset.provider === key) {
+                    btn.classList.add('active');
+                }
+            });
+
+            // Enable and update dashboard button
+            const dashboardBtn = document.getElementById('dashboard-btn');
+            dashboardBtn.disabled = false;
+            dashboardBtn.dataset.url = currentProvider.dashboard;
+
+            // Check if we have a saved key for this provider
+            checkSavedKey(key);
+        }
+
+        // Open dashboard in new tab
+        function openDashboard() {
+            const btn = document.getElementById('dashboard-btn');
+            const url = btn.dataset.url;
+            if (url) {
+                window.open(url, '_blank');
+            }
+        }
+
+        // Check for saved key
+        async function checkSavedKey(providerKey) {
+            try {
+                const response = await fetch(`${API_BASE}/keys/${providerKey}`);
+                const data = await response.json();
+                if (data.key) {
+                    document.getElementById('api-key').value = data.key;
+                }
+            } catch (error) {
+                console.log('No saved key for this provider');
+            }
+        }
+
+        // Load saved keys list
+        async function loadSavedKeys() {
+            try {
+                const response = await fetch(`${API_BASE}/keys`);
+                const keys = await response.json();
+                
+                const container = document.getElementById('saved-keys');
+                if (keys.length === 0) {
+                    container.innerHTML = '<p class="text-gray-500 text-sm">暂无保存的密钥</p>';
+                    return;
+                }
+                
+                container.innerHTML = keys.map(k => `
+                    <div class="flex items-center justify-between p-2 rounded-lg bg-base-300 hover:bg-opacity-70">
+                        <div class="flex items-center gap-2 flex-1 min-w-0">
+                            <span class="w-2 h-2 rounded-full bg-primary flex-shrink-0"></span>
+                            <span class="text-sm truncate">${k.provider_name}</span>
+                            <span class="text-xs text-gray-500 flex-shrink-0">${k.key.slice(0, 8)}...</span>
+                        </div>
+                        <div class="flex gap-1 flex-shrink-0">
+                            <button onclick="useKey('${k.provider_key}')" class="btn btn-xs btn-ghost">使用</button>
+                            <button onclick="deleteKey('${k.provider_key}')" class="btn btn-xs btn-ghost text-error hover:bg-error hover:text-white">
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
+                                </svg>
+                            </button>
+                        </div>
+                    </div>
+                `).join('');
+            } catch (error) {
+                console.log('Error loading saved keys:', error);
+            }
+        }
+
+        // Toggle API key visibility
+        function toggleKeyVisibility() {
+            const input = document.getElementById('api-key');
+            const showIcon = document.getElementById('eye-icon-show');
+            const hideIcon = document.getElementById('eye-icon-hide');
+            
+            if (input.type === 'password') {
+                input.type = 'text';
+                showIcon.classList.add('hidden');
+                hideIcon.classList.remove('hidden');
+            } else {
+                input.type = 'password';
+                showIcon.classList.remove('hidden');
+                hideIcon.classList.add('hidden');
+            }
+        }
+
+        // Copy API key to clipboard
+        async function copyApiKey() {
+            const apiKey = document.getElementById('api-key').value.trim();
+            
+            if (!apiKey) {
+                showToast('没有可复制的密钥', 'warning');
+                return;
+            }
+            
+            try {
+                await navigator.clipboard.writeText(apiKey);
+                
+                // Show success icon
+                const copyIcon = document.getElementById('copy-icon');
+                const successIcon = document.getElementById('copy-success-icon');
+                
+                copyIcon.classList.add('hidden');
+                successIcon.classList.remove('hidden');
+                
+                showToast('已复制到剪贴板', 'success');
+                
+                // Reset icon after 2 seconds
+                setTimeout(() => {
+                    copyIcon.classList.remove('hidden');
+                    successIcon.classList.add('hidden');
+                }, 2000);
+            } catch (error) {
+                showToast('复制失败', 'error');
+                console.error('Copy error:', error);
+            }
+        }
+
+        // Use a saved key
+        async function useKey(providerKey) {
+            const provider = providers.find(p => p.key === providerKey);
+            if (provider) {
+                selectProvider(providerKey);
+                await checkSavedKey(providerKey);
+            }
+        }
+
+        // Delete a saved key
+        async function deleteKey(providerKey) {
+            if (!confirm('确定要删除这个密钥吗？')) {
+                return;
+            }
+            
+            try {
+                const response = await fetch(`${API_BASE}/keys/${providerKey}`, {
+                    method: 'DELETE'
+                });
+                
+                const data = await response.json();
+                if (data.success) {
+                    showToast('密钥已删除', 'success');
+                    loadSavedKeys();
+                    
+                    // Clear the input if the deleted key was for current provider
+                    if (currentProvider && currentProvider.key === providerKey) {
+                        document.getElementById('api-key').value = '';
+                    }
+                } else {
+                    showToast(data.error || '删除失败', 'error');
+                }
+            } catch (error) {
+                showToast('删除失败', 'error');
+                console.error('Delete key error:', error);
+            }
+        }
+
+        // Query all saved keys' balances
+        async function queryAllBalances() {
+            try {
+                const response = await fetch(`${API_BASE}/keys`);
+                const savedKeys = await response.json();
+                
+                if (savedKeys.length === 0) {
+                    showToast('没有已保存的密钥', 'warning');
+                    return;
+                }
+
+                showLoading(`正在查询 ${savedKeys.length} 个密钥的余额...`);
+
+                const results = [];
+                let dominantCurrency = 'CNY';
+
+                for (const keyInfo of savedKeys) {
+                    try {
+                        const balanceResponse = await fetch(`${API_BASE}/balance`, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                                provider: keyInfo.provider_key,
+                                api_key: keyInfo.key
+                            })
+                        });
+
+                        const balanceData = await balanceResponse.json();
+                        
+                        if (balanceData.success && balanceData.data && balanceData.data.length > 0) {
+                            results.push({
+                                provider_name: keyInfo.provider_name,
+                                provider_key: keyInfo.provider_key,
+                                data: balanceData.data[0],
+                                currency: balanceData.currency,
+                                error: null
+                            });
+                            dominantCurrency = balanceData.currency;
+                        } else {
+                            results.push({
+                                provider_name: keyInfo.provider_name,
+                                provider_key: keyInfo.provider_key,
+                                data: null,
+                                currency: 'CNY',
+                                error: balanceData.error || '查询失败'
+                            });
+                        }
+                    } catch (e) {
+                        results.push({
+                            provider_name: keyInfo.provider_name,
+                            provider_key: keyInfo.provider_key,
+                            data: null,
+                            currency: 'CNY',
+                            error: '网络错误'
+                        });
+                    }
+                }
+
+                hideLoading();
+                displayAllBalances(results, dominantCurrency);
+                showToast('全部查询完成', 'success');
+
+            } catch (error) {
+                hideLoading();
+                showToast('获取已保存密钥列表失败', 'error');
+                console.error('Query all balances error:', error);
+            }
+        }
+
+        // Display all balances
+        function displayAllBalances(results, currency) {
+            const allBalancesCard = document.getElementById('all-balances-card');
+            const content = document.getElementById('all-balances-content');
+            
+            allBalancesCard.classList.remove('hidden');
+            document.getElementById('total-balance-currency').textContent = currency;
+
+            const validResults = results.filter(r => r.data);
+            const invalidResults = results.filter(r => r.error);
+
+            let totalAvailable = 0;
+            let totalToppedUp = 0;
+
+            validResults.forEach(r => {
+                totalAvailable += r.data.available || 0;
+                totalToppedUp += r.data.topped_up || 0;
+            });
+
+            content.innerHTML = `
+                <div class="mb-6 p-4 rounded-xl bg-gradient-to-r from-primary/20 to-secondary/20 border border-primary/30">
+                    <div class="grid grid-cols-3 gap-4 text-center">
+                        <div>
+                            <p class="text-gray-400 text-sm">总可用余额</p>
+                            <p class="stat-value text-xl">${formatNumber(totalAvailable)}</p>
+                        </div>
+                        <div>
+                            <p class="text-gray-400 text-sm">服务商数量</p>
+                            <p class="text-2xl font-bold text-white">${validResults.length}</p>
+                        </div>
+                        <div>
+                            <p class="text-gray-400 text-sm">充值余额</p>
+                            <p class="text-xl font-semibold text-secondary">${formatNumber(totalToppedUp)}</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="space-y-2 max-h-80 overflow-y-auto scrollbar-thin">
+                    ${results.map(r => `
+                        <div class="flex items-center justify-between p-3 rounded-lg bg-base-300 ${r.error ? 'opacity-50' : ''}">
+                            <div class="flex items-center gap-3">
+                                <span class="w-3 h-3 rounded-full ${r.error ? 'bg-error' : 'bg-primary'}"></span>
+                                <span class="font-medium">${r.provider_name}</span>
+                            </div>
+                            <div class="text-right">
+                                ${r.error ? 
+                                    `<span class="text-error text-sm">${r.error}</span>` :
+                                    `<span class="text-success font-semibold">${formatNumber(r.data.available)}</span>
+                                     <span class="text-gray-500 text-sm ml-1">${r.currency}</span>`
+                                }
+                            </div>
+                        </div>
+                    `).join('')}
+                </div>
+            `;
+        }
+
+        // Query Balance
+        async function queryBalance() {
+            if (!currentProvider) {
+                showToast('请先选择一个服务商', 'warning');
+                return;
+            }
+            
+            const apiKey = document.getElementById('api-key').value.trim();
+            if (!apiKey) {
+                showToast('请输入 API Key', 'warning');
+                return;
+            }
+
+            showLoading('正在查询余额...');
+
+            try {
+                const response = await fetch(`${API_BASE}/balance`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        provider: currentProvider.key,
+                        api_key: apiKey
+                    })
+                });
+
+                const data = await response.json();
+                hideLoading();
+
+                if (data.success) {
+                    displayBalance(data.data, data.currency);
+                    showToast('查询成功', 'success');
+                    // Auto query usage after balance
+                    queryUsage();
+                } else {
+                    showToast(data.error || '查询失败', 'error');
+                    displayBalanceError(data.error);
+                }
+            } catch (error) {
+                hideLoading();
+                showToast('网络错误，请确保后端服务正在运行', 'error');
+                console.error('Query balance error:', error);
+            }
+        }
+
+        // Query Usage
+        async function queryUsage() {
+            if (!currentProvider) {
+                showToast('请先选择一个服务商并查询余额', 'warning');
+                return;
+            }
+            
+            const apiKey = document.getElementById('api-key').value.trim();
+            if (!apiKey) {
+                showToast('请先输入 API Key', 'warning');
+                return;
+            }
+
+            try {
+                const response = await fetch(`${API_BASE}/usage`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        provider: currentProvider.key,
+                        api_key: apiKey
+                    })
+                });
+
+                const data = await response.json();
+
+                if (data.success) {
+                    displayUsage(data.data, data.currency);
+                } else {
+                    displayUsageError(data.error);
+                }
+            } catch (error) {
+                displayUsageError('网络错误');
+                console.error('Query usage error:', error);
+            }
+        }
+
+        // Save API Key
+        async function saveApiKey() {
+            if (!currentProvider) {
+                showToast('请先选择一个服务商', 'warning');
+                return;
+            }
+            
+            const apiKey = document.getElementById('api-key').value.trim();
+            if (!apiKey) {
+                showToast('请输入 API Key', 'warning');
+                return;
+            }
+
+            try {
+                const response = await fetch(`${API_BASE}/keys/${currentProvider.key}`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ api_key: apiKey })
+                });
+
+                const data = await response.json();
+                if (data.success) {
+                    showToast('密钥已保存', 'success');
+                    loadSavedKeys();
+                } else {
+                    showToast(data.error || '保存失败', 'error');
+                }
+            } catch (error) {
+                showToast('保存失败', 'error');
+                console.error('Save key error:', error);
+            }
+        }
+
+        // Display Balance
+        function displayBalance(balanceData, currency) {
+            const container = document.getElementById('balance-content');
+            document.getElementById('balance-provider').textContent = currentProvider.name;
+
+            if (Array.isArray(balanceData) && balanceData.length > 0) {
+                const item = balanceData[0];
+                container.innerHTML = `
+                    <div class="grid md:grid-cols-2 gap-6">
+                        <div class="stat-card p-6 rounded-xl bg-base-300 card-hover transition-all">
+                            <p class="text-gray-400 text-sm mb-2">可用余额</p>
+                            <p class="stat-value">${formatNumber(item.available)}</p>
+                            <p class="text-sm text-gray-500">${currency}</p>
+                        </div>
+                        <div class="stat-card p-6 rounded-xl bg-base-300 card-hover transition-all">
+                            <p class="text-gray-400 text-sm mb-2">总余额</p>
+                            <p class="text-2xl font-bold text-white">${formatNumber(item.total)}</p>
+                            <p class="text-sm text-gray-500">${currency}</p>
+                        </div>
+                        <div class="stat-card p-6 rounded-xl bg-base-300 card-hover transition-all">
+                            <p class="text-gray-400 text-sm mb-2">赠送额度</p>
+                            <p class="text-xl font-semibold text-success">${formatNumber(item.granted)}</p>
+                            <p class="text-sm text-gray-500">${currency}</p>
+                        </div>
+                        <div class="stat-card p-6 rounded-xl bg-base-300 card-hover transition-all">
+                            <p class="text-gray-400 text-sm mb-2">充值余额</p>
+                            <p class="text-xl font-semibold text-secondary">${formatNumber(item.topped_up)}</p>
+                            <p class="text-sm text-gray-500">${currency}</p>
+                        </div>
+                    </div>
+                `;
+            } else {
+                container.innerHTML = `
+                    <div class="text-center py-8">
+                        <p class="text-gray-400">余额信息不可用</p>
+                    </div>
+                `;
+            }
+        }
+
+        // Display Balance Error
+        function displayBalanceError(error) {
+            const container = document.getElementById('balance-content');
+            container.innerHTML = `
+                <div class="text-center py-8">
+                    <div class="w-16 h-16 mx-auto mb-4 rounded-full bg-error bg-opacity-20 flex items-center justify-center">
+                        <svg class="w-8 h-8 text-error" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/>
+                        </svg>
+                    </div>
+                    <p class="text-error font-medium">${error}</p>
+                    <p class="text-gray-500 text-sm mt-2">请检查 API Key 是否正确</p>
+                </div>
+            `;
+        }
+
+        // Display Usage
+        function displayUsage(usageData, currency) {
+            const container = document.getElementById('usage-content');
+            
+            if (usageData) {
+                container.innerHTML = `
+                    <div class="grid md:grid-cols-3 gap-4">
+                        <div class="p-4 rounded-xl bg-base-300 text-center card-hover transition-all">
+                            <p class="text-gray-400 text-sm mb-2">今日用量</p>
+                            <p class="text-xl font-bold text-warning">${formatNumber(usageData.used_today)}</p>
+                            <p class="text-xs text-gray-500">${currency}</p>
+                        </div>
+                        <div class="p-4 rounded-xl bg-base-300 text-center card-hover transition-all">
+                            <p class="text-gray-400 text-sm mb-2">本月用量</p>
+                            <p class="text-xl font-bold text-error">${formatNumber(usageData.used_month)}</p>
+                            <p class="text-xs text-gray-500">${currency}</p>
+                        </div>
+                        <div class="p-4 rounded-xl bg-base-300 text-center card-hover transition-all">
+                            <p class="text-gray-400 text-sm mb-2">累计使用</p>
+                            <p class="text-xl font-bold text-white">${formatNumber(usageData.total_used)}</p>
+                            <p class="text-xs text-gray-500">${currency}</p>
+                        </div>
+                    </div>
+                `;
+            } else {
+                container.innerHTML = `
+                    <div class="text-center py-8">
+                        <p class="text-gray-400">该服务商暂无用量数据</p>
+                    </div>
+                `;
+            }
+        }
+
+        // Display Usage Error
+        function displayUsageError(error) {
+            const container = document.getElementById('usage-content');
+            container.innerHTML = `
+                <div class="text-center py-8">
+                    <p class="text-gray-500">${error || '无法获取用量数据'}</p>
+                </div>
+            `;
+        }
+
+        // Format number
+        function formatNumber(num) {
+            if (num === undefined || num === null) return '0.0000';
+            return Number(num).toFixed(4);
+        }
+
+        // Show Loading
+        function showLoading(text = '加载中...') {
+            document.getElementById('loading-text').textContent = text;
+            document.getElementById('loading-modal').showModal();
+        }
+
+        // Hide Loading
+        function hideLoading() {
+            document.getElementById('loading-modal').close();
+        }
+
+        // Show Toast
+        function showToast(message, type = 'info') {
+            const container = document.getElementById('toast-container');
+            const colors = {
+                success: 'alert-success',
+                error: 'alert-error',
+                warning: 'alert-warning',
+                info: 'alert-info'
+            };
+            
+            const toast = document.createElement('div');
+            toast.className = `alert ${colors[type]} toast`;
+            toast.innerHTML = `<span>${message}</span>`;
+            container.appendChild(toast);
+            
+            setTimeout(() => toast.remove(), 3000);
+        }
+    </script>
+</body>
+</html>
