@@ -41,3 +41,4 @@ temp/
 # .openai_key
 # .anthropic_key
 # .token_manager_settings
+*.zip
