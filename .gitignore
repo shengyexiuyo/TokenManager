@@ -36,9 +36,9 @@ Thumbs.db
 tmp/
 temp/
 
-# Hidden config files (keep them in git if needed)
-# .deepseek_key
-# .openai_key
-# .anthropic_key
-# .token_manager_settings
+# API密钥文件（含真实密钥，严禁提交）
+.*_key
+.token_manager_settings
+.custom_provider.json
+.custom_providers.json
 *.zip
